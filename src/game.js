@@ -96,11 +96,50 @@ class Game {
       unlimitedStocks: true,
     };
 
+    // Mouse state
+    this.mouse = { x: 0, y: 0, clicked: false };
+    this._initMouse();
+
     // Start loop
     this._loop = this._loop.bind(this);
     this._lastTime = 0;
     this._accum = 0;
     requestAnimationFrame(this._loop);
+  }
+
+  _initMouse() {
+    // Use the UI canvas (top-most) for mouse events so it captures all clicks
+    const target = this.uiCanvas;
+
+    const _getCanvasPos = (e) => {
+      const rect = target.getBoundingClientRect();
+      // Account for CSS scaling when viewport is narrower than 1280px
+      const scaleX = C.W / rect.width;
+      const scaleY = C.H / rect.height;
+      return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top)  * scaleY,
+      };
+    };
+
+    target.addEventListener('mousemove', (e) => {
+      const pos = _getCanvasPos(e);
+      this.mouse.x = pos.x;
+      this.mouse.y = pos.y;
+    });
+
+    target.addEventListener('click', (e) => {
+      const pos = _getCanvasPos(e);
+      this.mouse.x = pos.x;
+      this.mouse.y = pos.y;
+      this.mouse.clicked = true;
+    });
+
+    // Reset cursor when leaving canvas
+    target.addEventListener('mouseleave', () => {
+      this.mouse.x = -9999;
+      this.mouse.y = -9999;
+    });
   }
 
   _loop(ts) {
@@ -118,6 +157,7 @@ class Game {
 
   _update() {
     this.input.update();
+    this.mouse.clicked = false;
     this.frame++;
 
     // Tick the global transition fade toward its target
@@ -426,6 +466,9 @@ class Game {
 
   _updateCharSelect() {
     const COLS = 5;
+    const cellW = 180, cellH = 140;
+    const startX = (C.W - COLS * cellW) / 2 + 10;
+    const startY = 360;
 
     for (const p of ['p1', 'p2']) {
       const cd = this.cursorMove[p];
@@ -452,7 +495,36 @@ class Game {
       if (moved) cd.cd = 12;
     }
 
-    // Confirm selection
+    // Mouse hover and click on character grid
+    // Active player for mouse: p1 if charSelectPhase is p1, otherwise p2
+    const activeP = this.charSelectPhase === 'p2' ? 'p2' : 'p1';
+    let hoveredCell = -1;
+    for (let i = 0; i < CHARACTERS.length; i++) {
+      const col = i % COLS;
+      const row = Math.floor(i / COLS);
+      const cellLeft  = startX + col * cellW + 2;
+      const cellTop   = startY + row * cellH + 2;
+      const cellRight = cellLeft + cellW - 4;
+      const cellBot   = cellTop  + cellH - 4;
+      if (this.mouse.x >= cellLeft && this.mouse.x <= cellRight &&
+          this.mouse.y >= cellTop  && this.mouse.y <= cellBot) {
+        hoveredCell = i;
+        this.selectedChar[activeP] = i;
+        break;
+      }
+    }
+    this.mouse._charHoveredCell = hoveredCell;
+
+    // Set pointer cursor when over a cell
+    const overCell = hoveredCell >= 0;
+    this.uiCanvas.style.cursor = overCell ? 'pointer' : 'default';
+
+    // Mouse click on a cell confirms selection
+    if (this.mouse.clicked && hoveredCell >= 0) {
+      this.gameState = GAME_STATE.STAGE_SELECT;
+    }
+
+    // Confirm selection via keyboard
     if (this.input.justPressed('p1', 'light') || this.input.justPressed('p1', 'heavy')) {
       this.gameState = GAME_STATE.STAGE_SELECT;
     }
@@ -610,12 +682,24 @@ class Game {
       else ctx.rect(startX + col * cellW + 2, startY + row * cellH + 2, cellW - 4, cellH - 4);
       ctx.fill();
 
+      // Mouse hover glow ring
+      const isMouseHovered = this.mouse._charHoveredCell === i;
+
       // Selection border
       if (isP1 || isP2) {
         ctx.shadowColor = isP1 ? '#4488FF' : '#FF4444';
         ctx.shadowBlur = 16;
         ctx.strokeStyle = isP1 ? '#4488FF' : '#FF4444';
         ctx.lineWidth = 2.5;
+        if (ctx.roundRect) ctx.roundRect(startX + col * cellW + 2, startY + row * cellH + 2, cellW - 4, cellH - 4, 8);
+        else ctx.rect(startX + col * cellW + 2, startY + row * cellH + 2, cellW - 4, cellH - 4);
+        ctx.stroke();
+      } else if (isMouseHovered) {
+        // Subtle glow ring for mouse hover (non-selected)
+        ctx.shadowColor = 'rgba(255,255,255,0.6)';
+        ctx.shadowBlur = 12;
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.lineWidth = 1.5;
         if (ctx.roundRect) ctx.roundRect(startX + col * cellW + 2, startY + row * cellH + 2, cellW - 4, cellH - 4, 8);
         else ctx.rect(startX + col * cellW + 2, startY + row * cellH + 2, cellW - 4, cellH - 4);
         ctx.stroke();
@@ -674,6 +758,29 @@ class Game {
     if (this.input.justPressed('p1', 'shield')) {
       this.gameState = GAME_STATE.CHAR_SELECT;
     }
+
+    // Mouse hover and click on stage thumbnails
+    const thumbW = 200, thumbH = 40;
+    const totalW = STAGE_LIST.length * (thumbW + 10);
+    let tx = (C.W - totalW) / 2;
+    let hoveredStage = -1;
+    for (let i = 0; i < STAGE_LIST.length; i++) {
+      const thumbLeft = tx;
+      const thumbTop  = C.H - 85;
+      if (this.mouse.x >= thumbLeft && this.mouse.x <= thumbLeft + thumbW &&
+          this.mouse.y >= thumbTop  && this.mouse.y <= thumbTop + thumbH) {
+        hoveredStage = i;
+        this.selectedStage = i;
+        break;
+      }
+      tx += thumbW + 10;
+    }
+    this.mouse._stageHoveredThumb = hoveredStage;
+    this.uiCanvas.style.cursor = hoveredStage >= 0 ? 'pointer' : 'default';
+
+    if (this.mouse.clicked && hoveredStage >= 0) {
+      this._startMatch();
+    }
   }
 
   _renderStageSelect(ctx) {
@@ -708,11 +815,18 @@ class Game {
     let tx = (C.W - totalW) / 2;
     for (let i = 0; i < STAGE_LIST.length; i++) {
       const selected = i === this.selectedStage;
-      ctx.fillStyle = selected ? '#FFE000' : '#444';
+      const isMouseHovered = this.mouse._stageHoveredThumb === i;
+      ctx.save();
+      if (isMouseHovered && !selected) {
+        ctx.shadowColor = 'rgba(255,255,255,0.7)';
+        ctx.shadowBlur = 14;
+      }
+      ctx.fillStyle = selected ? '#FFE000' : (isMouseHovered ? '#666' : '#444');
       ctx.fillRect(tx, C.H - 85, thumbW, thumbH);
-      ctx.strokeStyle = selected ? '#FFF' : '#666';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = selected ? '#FFF' : (isMouseHovered ? 'rgba(255,255,255,0.7)' : '#666');
+      ctx.lineWidth = selected ? 2 : (isMouseHovered ? 2 : 1);
       ctx.strokeRect(tx, C.H - 85, thumbW, thumbH);
+      ctx.restore();
       ctx.font = `bold ${selected ? 14 : 12}px "Arial Black"`;
       ctx.textAlign = 'center';
       ctx.fillStyle = selected ? '#000' : '#aaa';
