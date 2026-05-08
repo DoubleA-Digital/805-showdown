@@ -328,6 +328,125 @@ function drawHairMediumBrown(ctx, _skin, hairColor) {
   }
 }
 
+// Big puffy spiky natural hair (Matteen / Pratik style — voluminous afro-spiky)
+function drawHairSpikyNatural(ctx, _skin, hairColor) {
+  ctx.fillStyle = hairColor;
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 2.5;
+  // Big base puff
+  ctx.beginPath();
+  ctx.ellipse(0, -22, 26, 22, 0, Math.PI, 0);
+  ctx.fill();
+  ctx.stroke();
+  // Top spikes/clusters
+  const spikes = [
+    [-16, -32, 9],
+    [-6, -38, 11],
+    [4, -40, 11],
+    [14, -34, 10],
+    [-22, -26, 8],
+    [22, -26, 8],
+  ];
+  for (const [cx, cy, r] of spikes) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+  // Bangs over forehead
+  ctx.beginPath();
+  ctx.moveTo(-18, -16);
+  ctx.quadraticCurveTo(-8, -10, 0, -14);
+  ctx.quadraticCurveTo(10, -10, 18, -16);
+  ctx.lineTo(20, -22);
+  ctx.lineTo(-20, -22);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+}
+
+// Spiky brown — more compact, brown-color spiky (Mathew)
+function drawHairSpikyBrown(ctx, _skin, hairColor) {
+  drawHairSpiky(ctx, _skin, hairColor);
+}
+
+// Short messy black (Cameron / Harshith)
+function drawHairShortMessy(ctx, _skin, hairColor) {
+  ctx.fillStyle = hairColor;
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(0, -20, 22, 16, 0, Math.PI, 0);
+  ctx.fill();
+  ctx.stroke();
+  // Light spikes/tufts on top
+  const tufts = [
+    [-12, -28, 7],
+    [-2, -32, 8],
+    [10, -28, 7],
+    [-18, -22, 6],
+    [18, -22, 6],
+  ];
+  for (const [cx, cy, r] of tufts) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+}
+
+// Short neat (Aarush)
+function drawHairShortNeat(ctx, _skin, hairColor) {
+  ctx.fillStyle = hairColor;
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(0, -20, 22, 16, 0, Math.PI, 0);
+  ctx.fill();
+  ctx.stroke();
+  // Bangs / front section
+  ctx.beginPath();
+  ctx.moveTo(-20, -18);
+  ctx.quadraticCurveTo(-4, -28, 18, -20);
+  ctx.lineTo(20, -14);
+  ctx.quadraticCurveTo(0, -22, -20, -14);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// Long wavy brown (Dilion)
+function drawHairLongWavy(ctx, _skin, hairColor) {
+  ctx.fillStyle = hairColor;
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 2;
+  // Big back-of-head shape
+  ctx.beginPath();
+  ctx.ellipse(0, -16, 26, 22, 0, Math.PI, 0);
+  ctx.fill();
+  ctx.stroke();
+  // Side flow strands
+  for (const side of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(side * 22, -22);
+    ctx.quadraticCurveTo(side * 30, -2, side * 24, 12);
+    ctx.lineTo(side * 16, 8);
+    ctx.quadraticCurveTo(side * 22, -4, side * 14, -16);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+  // Wavy fringe over forehead
+  ctx.beginPath();
+  ctx.moveTo(-22, -20);
+  ctx.quadraticCurveTo(-10, -10, 0, -14);
+  ctx.quadraticCurveTo(10, -10, 22, -20);
+  ctx.lineTo(22, -10);
+  ctx.quadraticCurveTo(0, -2, -22, -10);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+}
+
 // ── Per-character accessory drawers ───────────────────────────────────────
 
 function drawGlasses(ctx) {
@@ -409,6 +528,107 @@ function drawChain(ctx) {
   ctx.stroke();
 }
 
+// Drawn at torso-local coordinates. Hangs from front pant pocket downward.
+function drawPantChain(ctx, color = '#C8C8C8') {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  // Loop hanging from hip (around y=-6 to 6 in torso frame)
+  ctx.beginPath();
+  ctx.moveTo(-3, -6);
+  ctx.bezierCurveTo(-12, 0, -10, 8, -2, 8);
+  ctx.bezierCurveTo(4, 8, 6, 0, 3, -6);
+  ctx.stroke();
+  // Tiny links
+  for (let i = 0; i < 4; i++) {
+    const t = i / 3;
+    const x = -3 + t * 6 + Math.sin(t * Math.PI) * (-4);
+    const y = -6 + Math.sin(t * Math.PI) * 14;
+    ctx.beginPath();
+    ctx.arc(x, y, 1.2, 0, Math.PI * 2);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// Hood drawn UP over the head (Arthur)
+function drawHoodUp(ctx, hoodieColor) {
+  ctx.save();
+  ctx.fillStyle = hoodieColor || '#1A1A1A';
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 2.5;
+  // Outer hood shape — tear-drop covering head
+  ctx.beginPath();
+  ctx.moveTo(-26, 4);
+  ctx.bezierCurveTo(-32, -20, -22, -42, 0, -42);
+  ctx.bezierCurveTo(22, -42, 32, -20, 26, 4);
+  ctx.lineTo(20, 2);
+  ctx.bezierCurveTo(22, -16, 12, -32, 0, -32);
+  ctx.bezierCurveTo(-12, -32, -22, -16, -20, 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // Shadow inside hood opening
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(0, -14, 18, 22, 0, 0, Math.PI * 2);
+  ctx.clip();
+  const shade = ctx.createRadialGradient(0, -22, 4, 0, -22, 24);
+  shade.addColorStop(0, 'rgba(0,0,0,0)');
+  shade.addColorStop(1, 'rgba(0,0,0,0.55)');
+  ctx.fillStyle = shade;
+  ctx.fillRect(-25, -40, 50, 50);
+  ctx.restore();
+  ctx.restore();
+}
+
+function drawMustache(ctx, headY, color = '#0A0A0A') {
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-7, headY + 2);
+  ctx.quadraticCurveTo(-3, headY + 4, 0, headY + 3);
+  ctx.quadraticCurveTo(3, headY + 4, 7, headY + 2);
+  ctx.quadraticCurveTo(3, headY + 6, 0, headY + 5);
+  ctx.quadraticCurveTo(-3, headY + 6, -7, headY + 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawGoatee(ctx, headY, color = '#0A0A0A') {
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-4, headY + 9);
+  ctx.quadraticCurveTo(0, headY + 16, 4, headY + 9);
+  ctx.quadraticCurveTo(2, headY + 11, 0, headY + 10);
+  ctx.quadraticCurveTo(-2, headY + 11, -4, headY + 9);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawBrowPiercing(ctx, headY) {
+  ctx.save();
+  ctx.fillStyle = '#D8D8D8';
+  ctx.strokeStyle = '#666';
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  ctx.arc(-12, headY - 13, 1.6, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+
 // ── Main character draw function ──────────────────────────────────────────
 
 export function drawCharacter(ctx, fighter, gameFrame) {
@@ -457,17 +677,7 @@ export function drawCharacter(ctx, fighter, gameFrame) {
   drawTaperedLimb(ctx, backHipPt.x, backHipPt.y, bKneeEnd.x, bKneeEnd.y, 9, 7, palette.outfit2 || '#333');
   const bFootEnd = limbEndpoint(bKneeEnd.x, bKneeEnd.y, C.LEG_LOWER, bKneeAng + pose.lKnee * 0.7);
   drawTaperedLimb(ctx, bKneeEnd.x, bKneeEnd.y, bFootEnd.x, bFootEnd.y, 7, 5, palette.shoes || '#222');
-  // Foot cap
-  ctx.save();
-  ctx.beginPath();
-  ctx.ellipse(bFootEnd.x + 3, bFootEnd.y, 8, 5, -0.2, 0, Math.PI * 2);
-  ctx.fillStyle = '#000';
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(bFootEnd.x + 3, bFootEnd.y, 7, 4, -0.2, 0, Math.PI * 2);
-  ctx.fillStyle = palette.shoes || '#222';
-  ctx.fill();
-  ctx.restore();
+  _drawShoeCap(ctx, bFootEnd.x, bFootEnd.y, palette, data, false);
 
   // Back arm
   const backShoulderPt = { x: -10, y: -35 };
@@ -493,6 +703,9 @@ export function drawCharacter(ctx, fighter, gameFrame) {
 
   const tw = C.TORSO_W + 4;
   const torsoTop = -th - 8;
+  const hoodieStyle = data?.features?.hoodieStyle || 'pullover';
+  const hasUndershirt = !!data?.features?.hasUndershirt;
+  const hasInner = !!data?.features?.hasInnerHoodie;
 
   // Outer outline
   ctx.beginPath();
@@ -500,11 +713,45 @@ export function drawCharacter(ctx, fighter, gameFrame) {
   ctx.fillStyle = '#000';
   ctx.fill();
 
-  // Main torso fill
+  // White undershirt peek strip across the bottom hem (drawn first so other layers cover it)
+  if (hasUndershirt) {
+    ctx.fillStyle = palette.undertop || '#F0F0F0';
+    ctx.beginPath();
+    ctx.roundRect(-tw/2, torsoTop + th - 8, tw, 10, 4);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-tw/2 + 1, torsoTop + th - 8);
+    ctx.lineTo(tw/2 - 1, torsoTop + th - 8);
+    ctx.stroke();
+  }
+
+  // Inner hoodie/jacket layer (visible through open zip)
+  if (hasInner) {
+    ctx.fillStyle = palette.innerLayer || '#222';
+    ctx.beginPath();
+    ctx.roundRect(-tw/2 + 2, torsoTop + 2, tw - 4, th - 4, 4);
+    ctx.fill();
+  }
+
+  // Main torso fill (the outer top — hoodie or tee)
   ctx.beginPath();
   ctx.roundRect(-tw/2, torsoTop, tw, th, 6);
   ctx.fillStyle = palette.outfit1 || '#888';
-  ctx.fill();
+  if (hoodieStyle === 'zip' && hasInner) {
+    // Zip jacket open: only the side panels are the outer color, middle shows inner
+    // Left side panel
+    ctx.beginPath();
+    ctx.roundRect(-tw/2, torsoTop, tw/2 - 2, th, 6);
+    ctx.fill();
+    // Right side panel
+    ctx.beginPath();
+    ctx.roundRect(2, torsoTop, tw/2 - 2, th, 6);
+    ctx.fill();
+  } else {
+    ctx.fill();
+  }
 
   // Cel highlight
   ctx.save();
@@ -521,16 +768,88 @@ export function drawCharacter(ctx, fighter, gameFrame) {
   ctx.fill();
   ctx.restore();
 
-  // Collar / neckline detail
-  ctx.beginPath();
-  ctx.moveTo(-8, torsoTop + 2);
-  ctx.quadraticCurveTo(0, torsoTop + 8, 8, torsoTop + 2);
-  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
+  // Hoodie style details
+  if (hoodieStyle === 'pullover') {
+    // Drawstrings
+    ctx.save();
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-4, torsoTop + 4);
+    ctx.lineTo(-5, torsoTop + 18);
+    ctx.moveTo(4, torsoTop + 4);
+    ctx.lineTo(5, torsoTop + 18);
+    ctx.stroke();
+    // Aglets
+    ctx.fillStyle = '#222';
+    ctx.beginPath();
+    ctx.arc(-5, torsoTop + 19, 1.4, 0, Math.PI * 2);
+    ctx.arc(5, torsoTop + 19, 1.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    // Pocket line
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-tw/2 + 6, torsoTop + th * 0.55);
+    ctx.lineTo(tw/2 - 6, torsoTop + th * 0.55);
+    ctx.stroke();
+    // Optional logo (small white mark)
+    if (data?.features?.hasHoodieLogo) {
+      ctx.fillStyle = palette.accent || '#FFFFFF';
+      ctx.beginPath();
+      ctx.ellipse(0, torsoTop + 12, 6, 2, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (hoodieStyle === 'zip') {
+    // Vertical zipper line
+    ctx.save();
+    ctx.strokeStyle = '#1A1A1A';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, torsoTop + 2);
+    ctx.lineTo(0, torsoTop + th - 4);
+    ctx.stroke();
+    // Zipper teeth (subtle)
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = 0.5;
+    for (let zy = torsoTop + 4; zy < torsoTop + th - 4; zy += 3) {
+      ctx.beginPath();
+      ctx.moveTo(-1, zy);
+      ctx.lineTo(1, zy);
+      ctx.stroke();
+    }
+    ctx.restore();
+    // Pull tab
+    ctx.fillStyle = '#C8C8C8';
+    ctx.beginPath();
+    ctx.roundRect(-1.5, torsoTop + 6, 3, 5, 1);
+    ctx.fill();
+  } else if (hoodieStyle === 'tee') {
+    // T-shirt: round neckline, no drawstrings, no pocket
+    ctx.beginPath();
+    ctx.moveTo(-9, torsoTop + 1);
+    ctx.quadraticCurveTo(0, torsoTop + 10, 9, torsoTop + 1);
+    ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
 
-  // Per-character outfit detail
-  if (data?.name) _drawOutfitDetail(ctx, data.name.toLowerCase(), palette, torsoTop, tw, th);
+  // Collar / neckline detail (default subtle)
+  if (hoodieStyle !== 'tee') {
+    ctx.beginPath();
+    ctx.moveTo(-8, torsoTop + 2);
+    ctx.quadraticCurveTo(0, torsoTop + 8, 8, torsoTop + 2);
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  // Pant chain hanging from hip
+  if (data?.features?.hasPantChain) {
+    drawPantChain(ctx, palette.chain || '#C8C8C8');
+  }
 
   ctx.restore();
 
@@ -541,17 +860,7 @@ export function drawCharacter(ctx, fighter, gameFrame) {
   drawTaperedLimb(ctx, frontHipPt.x, frontHipPt.y, fKneeEnd.x, fKneeEnd.y, 10, 8, palette.outfit2 || '#333');
   const fFootEnd = limbEndpoint(fKneeEnd.x, fKneeEnd.y, C.LEG_LOWER, fKneeAng + pose.rKnee * 0.7);
   drawTaperedLimb(ctx, fKneeEnd.x, fKneeEnd.y, fFootEnd.x, fFootEnd.y, 8, 6, palette.shoes || '#222');
-  // Foot cap
-  ctx.save();
-  ctx.beginPath();
-  ctx.ellipse(fFootEnd.x + 3, fFootEnd.y, 9, 5.5, -0.2, 0, Math.PI * 2);
-  ctx.fillStyle = '#000';
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(fFootEnd.x + 3, fFootEnd.y, 8, 4.5, -0.2, 0, Math.PI * 2);
-  ctx.fillStyle = palette.shoes || '#222';
-  ctx.fill();
-  ctx.restore();
+  _drawShoeCap(ctx, fFootEnd.x, fFootEnd.y, palette, data, true);
 
   // Front arm
   const frontShoulderPt = { x: 10, y: -35 };
@@ -658,21 +967,55 @@ export function drawCharacter(ctx, fighter, gameFrame) {
   ctx.stroke();
 
   // Face
-  _drawFace(ctx, headY, state, palette);
+  _drawFace(ctx, headY, state, palette, data);
 
-  // Hair
-  const hairFn = _getHairFn(data?.features?.hairStyle || 'medium_sweep');
+  // Hair (skipped if hood is up — hood covers it; bangs still show via hood opening)
+  const hoodUp = !!data?.features?.hasHoodUp;
+  if (!hoodUp) {
+    const hairFn = _getHairFn(data?.features?.hairStyle || 'medium_sweep');
+    ctx.save();
+    ctx.translate(0, headY);
+    hairFn(ctx, palette.skin, palette.hair || '#111');
+    ctx.restore();
+  } else {
+    // Just bangs peeking out under the hood
+    ctx.save();
+    ctx.translate(0, headY);
+    ctx.fillStyle = palette.hair || '#111';
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(-14, -10);
+    ctx.quadraticCurveTo(-4, -16, 6, -12);
+    ctx.quadraticCurveTo(12, -10, 14, -8);
+    ctx.lineTo(8, -4);
+    ctx.quadraticCurveTo(-2, -8, -14, -4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Hood up over head
+  if (hoodUp) {
+    ctx.save();
+    ctx.translate(0, headY);
+    drawHoodUp(ctx, palette.outfit1);
+    ctx.restore();
+  }
+
+  // Accessories that sit on the head
   ctx.save();
   ctx.translate(0, headY);
-  hairFn(ctx, palette.skin, palette.hair || '#111');
-
-  // Accessories
-  if (data?.features?.hasGlasses)  drawGlasses(ctx);
-  if (data?.features?.hasBandana)  drawBandana(ctx, palette.bandana1, palette.bandana2);
-  if (data?.features?.hasNoseRing) drawNoseRing(ctx);
-  if (data?.features?.hasEarrings) drawEarrings(ctx);
-  if (data?.features?.hasChain)    drawChain(ctx);
-  ctx.restore(); // hair + accessories
+  if (data?.features?.hasGlasses)       drawGlasses(ctx);
+  if (data?.features?.hasBandana)       drawBandana(ctx, palette.bandana1, palette.bandana2);
+  if (data?.features?.hasNoseRing)      drawNoseRing(ctx);
+  if (data?.features?.hasEarrings)      drawEarrings(ctx);
+  if (data?.features?.hasChain)         drawChain(ctx);
+  if (data?.features?.hasBrowPiercing)  drawBrowPiercing(ctx, 0);
+  if (data?.features?.hasMustache)      drawMustache(ctx, 0, palette.facialHair || palette.hair);
+  if (data?.features?.hasGoatee)        drawGoatee(ctx, 0, palette.facialHair || palette.hair);
+  ctx.restore();
 
   ctx.restore(); // head rotation
 
@@ -707,7 +1050,7 @@ export function drawCharacter(ctx, fighter, gameFrame) {
 
 // ── Face drawing ──────────────────────────────────────────────────────────
 
-function _drawFace(ctx, headY, state, palette) {
+function _drawFace(ctx, headY, state, palette, data) {
   const isHit = state === STATE.HIT_STUN || state === STATE.KO_LAUNCH;
   const isAttacking = [
     STATE.LIGHT_NEUTRAL, STATE.LIGHT_SIDE, STATE.LIGHT_UP,
@@ -820,10 +1163,12 @@ function _drawFace(ctx, headY, state, palette) {
       ctx.stroke();
     }
 
-    // Slight mouth (small satisfied smile)
+    // Slight mouth (small satisfied smile, wider if hasSmile)
+    const wide = data?.features?.hasSmile ? 8 : 5;
+    const drop = data?.features?.hasSmile ? 10 : 8;
     ctx.beginPath();
-    ctx.moveTo(-5, headY + 5);
-    ctx.quadraticCurveTo(0, headY + 8, 5, headY + 5);
+    ctx.moveTo(-wide, headY + 5);
+    ctx.quadraticCurveTo(0, headY + drop, wide, headY + 5);
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 1.5;
     ctx.lineCap = 'round';
@@ -841,125 +1186,6 @@ function _drawFace(ctx, headY, state, palette) {
   }
 }
 
-// ── Per-character outfit chest details ────────────────────────────────────
-
-function _drawOutfitDetail(ctx, charName, palette, torsoTop, tw, th) {
-  ctx.save();
-  switch (charName) {
-    case 'ram':
-      // Gold chain arc on white tee
-      ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 2.2;
-      ctx.beginPath(); ctx.arc(0, torsoTop + th * 0.36, 8, -Math.PI * 0.65, Math.PI * 1.65); ctx.stroke();
-      // Chain links
-      ctx.strokeStyle = '#DAA520'; ctx.lineWidth = 1;
-      for (let i = -2; i <= 2; i++) {
-        ctx.beginPath(); ctx.arc(i * 3.5, torsoTop + th * 0.36 + 7, 2, 0, Math.PI * 2); ctx.stroke();
-      }
-      break;
-
-    case 'arthur':
-      // Hoodie drawstring cords
-      ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(-3, torsoTop + 4); ctx.lineTo(-5, torsoTop + 20);
-      ctx.moveTo(3, torsoTop + 4); ctx.lineTo(5, torsoTop + 20);
-      ctx.stroke();
-      // Front kangaroo pocket
-      ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.roundRect(-12, torsoTop + th * 0.52, 24, 14, 3); ctx.fill(); ctx.stroke();
-      break;
-
-    case 'matteen':
-      // Leather jacket lapels (V-shape opening)
-      ctx.fillStyle = '#0A0A0A';
-      ctx.beginPath();
-      ctx.moveTo(-tw / 2 + 2, torsoTop + 1);
-      ctx.lineTo(0, torsoTop + th * 0.44);
-      ctx.lineTo(-tw / 2 + 2, torsoTop + th * 0.52);
-      ctx.closePath(); ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(tw / 2 - 2, torsoTop + 1);
-      ctx.lineTo(0, torsoTop + th * 0.44);
-      ctx.lineTo(tw / 2 - 2, torsoTop + th * 0.52);
-      ctx.closePath(); ctx.fill();
-      // Red accent stripe across left shoulder
-      ctx.fillStyle = '#CC2222';
-      ctx.fillRect(-tw / 2, torsoTop, tw, 4);
-      // Center button row
-      ctx.fillStyle = '#333'; ctx.strokeStyle = '#555'; ctx.lineWidth = 1;
-      for (let b = 0; b < 3; b++) {
-        ctx.beginPath(); ctx.arc(0, torsoTop + th * 0.55 + b * 6, 1.5, 0, Math.PI * 2);
-        ctx.fill(); ctx.stroke();
-      }
-      break;
-
-    case 'ajay':
-      // Flannel plaid crosshatch on red
-      ctx.save();
-      ctx.beginPath(); ctx.roundRect(-tw / 2, torsoTop, tw, th, 6); ctx.clip();
-      ctx.strokeStyle = 'rgba(0,0,0,0.14)'; ctx.lineWidth = 1;
-      for (let px = -tw / 2; px < tw / 2; px += 6) {
-        ctx.beginPath(); ctx.moveTo(px, torsoTop); ctx.lineTo(px, torsoTop + th); ctx.stroke();
-      }
-      ctx.strokeStyle = 'rgba(255,255,255,0.09)'; ctx.lineWidth = 1;
-      for (let py = torsoTop; py < torsoTop + th; py += 8) {
-        ctx.beginPath(); ctx.moveTo(-tw / 2, py); ctx.lineTo(tw / 2, py); ctx.stroke();
-      }
-      ctx.restore();
-      break;
-
-    case 'cameron':
-      // SANTOS text on chest
-      ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.font = 'bold 6px "Arial Black", Arial';
-      ctx.textAlign = 'center'; ctx.fillText('SANTOS', 0, torsoTop + th * 0.3);
-      // Front hoodie pocket
-      ctx.fillStyle = 'rgba(0,0,0,0.1)'; ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.roundRect(-13, torsoTop + th * 0.52, 26, 14, 3); ctx.fill(); ctx.stroke();
-      break;
-
-    case 'aarush':
-      // Kangaroo pocket with divider
-      ctx.fillStyle = 'rgba(0,0,0,0.13)'; ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.roundRect(-14, torsoTop + th * 0.48, 28, 17, 3); ctx.fill(); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0, torsoTop + th * 0.48); ctx.lineTo(0, torsoTop + th * 0.48 + 17); ctx.stroke();
-      break;
-
-    case 'pratik':
-      // Vintage graphic circle print on dark tee
-      ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.arc(0, torsoTop + th * 0.38, 9, 0, Math.PI * 2); ctx.stroke();
-      ctx.fillStyle = 'rgba(255,255,255,0.28)'; ctx.font = 'bold 5px Arial'; ctx.textAlign = 'center';
-      ctx.fillText('805', 0, torsoTop + th * 0.41);
-      break;
-
-    case 'mathew':
-      // Track jacket center zipper
-      ctx.strokeStyle = 'rgba(255,255,255,0.38)'; ctx.lineWidth = 1.5;
-      ctx.setLineDash([2, 2]);
-      ctx.beginPath(); ctx.moveTo(0, torsoTop + 3); ctx.lineTo(0, torsoTop + th - 4); ctx.stroke();
-      ctx.setLineDash([]);
-      // Side color stripes
-      ctx.fillStyle = palette.aura || '#FFE000'; ctx.globalAlpha = 0.45;
-      ctx.fillRect(tw / 2 - 7, torsoTop + 4, 5, th - 8);
-      ctx.fillRect(-tw / 2 + 2, torsoTop + 4, 5, th - 8);
-      ctx.globalAlpha = 1;
-      break;
-
-    case 'harshith':
-      // Oversized hoodie front pocket
-      ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.roundRect(-15, torsoTop + th * 0.5, 30, 16, 3); ctx.fill(); ctx.stroke();
-      // Gold chain hint
-      ctx.strokeStyle = 'rgba(255,215,0,0.45)'; ctx.lineWidth = 1.8;
-      ctx.beginPath(); ctx.arc(0, torsoTop + th * 0.26, 7, -Math.PI * 0.6, Math.PI * 1.6); ctx.stroke();
-      break;
-
-    default:
-      break;
-  }
-  ctx.restore();
-}
-
 // ── Hair style map ────────────────────────────────────────────────────────
 
 function _getHairFn(style) {
@@ -967,6 +1193,11 @@ function _getHairFn(style) {
     curly:          drawHairCurly,
     straight_bangs: drawHairStraightBangs,
     spiky:          drawHairSpiky,
+    spiky_natural:  drawHairSpikyNatural,
+    spiky_brown:    drawHairSpikyBrown,
+    short_messy:    drawHairShortMessy,
+    short_neat:     drawHairShortNeat,
+    long_wavy:      drawHairLongWavy,
     wavy:           drawHairWavy,
     medium_sweep:   drawHairMediumSweep,
     straight_side:  drawHairStraightSide,
@@ -1177,6 +1408,36 @@ export function drawDebugBoxes(ctx, fighter) {
   ctx.restore();
 }
 
+// Shoe cap with optional Nike Dunk panel + sole
+function _drawShoeCap(ctx, x, y, palette, data, isFront) {
+  const w = isFront ? 9 : 8;
+  const h = isFront ? 5.5 : 5;
+  // Outline
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(x + 3, y, w, h, -0.2, 0, Math.PI * 2);
+  ctx.fillStyle = '#000';
+  ctx.fill();
+  // Main color
+  ctx.beginPath();
+  ctx.ellipse(x + 3, y, w - 1, h - 1, -0.2, 0, Math.PI * 2);
+  ctx.fillStyle = palette.shoes || '#222';
+  ctx.fill();
+  if (data?.features?.shoeStyle === 'nike_dunk' || data?.features?.shoeStyle === 'jordan1') {
+    // White sole strip
+    ctx.fillStyle = palette.shoesAccent || '#F5F5F5';
+    ctx.beginPath();
+    ctx.ellipse(x + 3, y + h * 0.55, w - 1.5, 1.6, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+    // Side swoosh / panel
+    ctx.beginPath();
+    ctx.ellipse(x + 1, y - 0.5, 2.5, 1.5, 0.2, 0, Math.PI * 2);
+    ctx.fillStyle = palette.shoesAccent || '#F5F5F5';
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
 // ── Portrait drawing (HUD / character select) ─────────────────────────────
 
 export function drawPortrait(ctx, charData, cx, cy, size = 50) {
@@ -1194,9 +1455,12 @@ export function drawPortrait(ctx, charData, cx, cy, size = 50) {
   ctx.ellipse(0, 0, 28, 32, 0, 0, Math.PI * 2);
   ctx.fill(); ctx.stroke();
 
-  // Hair
-  const hairFn = _getHairFn(charData.features?.hairStyle || 'medium_sweep');
-  hairFn(ctx, p?.skin, p?.hair);
+  // Hair (or hood up)
+  const hoodUp = !!charData.features?.hasHoodUp;
+  if (!hoodUp) {
+    const hairFn = _getHairFn(charData.features?.hairStyle || 'medium_sweep');
+    hairFn(ctx, p?.skin, p?.hair);
+  }
 
   // Eyes
   ctx.fillStyle = '#fff';
@@ -1208,13 +1472,20 @@ export function drawPortrait(ctx, charData, cx, cy, size = 50) {
     ctx.beginPath();
     ctx.ellipse(sx + 1, -5, 4, 5, 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.fillStyle = '#fff';
   }
 
+  // Hood drawn over head
+  if (hoodUp) drawHoodUp(ctx, p?.outfit1);
+
   // Accessories
-  if (charData.features?.hasGlasses)  drawGlasses(ctx);
-  if (charData.features?.hasBandana)  drawBandana(ctx, p?.bandana1, p?.bandana2);
-  if (charData.features?.hasNoseRing) drawNoseRing(ctx);
-  if (charData.features?.hasEarrings) drawEarrings(ctx);
+  if (charData.features?.hasGlasses)      drawGlasses(ctx);
+  if (charData.features?.hasBandana)      drawBandana(ctx, p?.bandana1, p?.bandana2);
+  if (charData.features?.hasNoseRing)     drawNoseRing(ctx);
+  if (charData.features?.hasEarrings)     drawEarrings(ctx);
+  if (charData.features?.hasBrowPiercing) drawBrowPiercing(ctx, 0);
+  if (charData.features?.hasMustache)     drawMustache(ctx, 0, p?.facialHair || p?.hair);
+  if (charData.features?.hasGoatee)       drawGoatee(ctx, 0, p?.facialHair || p?.hair);
 
   ctx.restore();
 }

@@ -1,21 +1,27 @@
 export default {
   name: 'Pratik',
   palette: {
-    skin: '#B5722A',
-    hair: '#0D0D0D',
+    skin: '#A57350',
+    hair: '#0A0A0A',
     eye: '#3A1A0A',
-    outfit1: '#222222',  // faded black vintage tee
-    outfit2: '#111111',  // black baggy jeans
-    shoes: '#F5F5F5',    // white New Balance 550s
+    outfit1: '#1A1A1E',      // plain black tee
+    outfit2: '#0A0A0A',      // black cargo pants
+    shoes: '#0F0F12',        // black Dunks
+    shoesAccent: '#F5F5F5',
+    chain: '#C8C8C8',        // silver pant chain
     aura: '#39FF14',
   },
   features: {
-    hairStyle: 'medium_sweep',
+    hairStyle: 'spiky_natural',
+    hoodieStyle: 'tee',
+    hasUndershirt: false,
+    hasPantChain: true,
     hasEarrings: true,
     hasChain: false,
     hasGlasses: false,
     hasBandana: false,
     hasNoseRing: false,
+    shoeStyle: 'nike_dunk',
   },
   proportions: { weight: 95, height: 1.0, width: 1.0 },
   stats: { speed: 1.1, jump: 1.05, air: 1.0, fall: 1.0 },

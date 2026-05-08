@@ -1,22 +1,30 @@
 export default {
   name: 'Matteen',
   palette: {
-    skin: '#A0522D',
+    skin: '#B57A52',         // warm tan brown
     hair: '#0A0A0A',
     eye: '#3A2510',
-    outfit1: '#111111',  // leather jacket
-    outfit2: '#1A1A1A',  // black jeans
-    shoes: '#2A2A2A',    // boots
-    accent: '#CC3333',   // red stripe
+    outfit1: '#0F0F12',      // black Stussy hoodie
+    outfit2: '#0A0A0A',      // black cargo pants
+    shoes: '#0F0F12',        // black Nike Dunk uppers
+    shoesAccent: '#F5F5F5',  // white panel
+    undertop: '#F5F5F5',     // white tee peek
+    chain: '#C8C8C8',        // silver pant chain
+    accent: '#FF3030',
     aura: '#FF3030',
   },
   features: {
-    hairStyle: 'spiky',
+    hairStyle: 'spiky_natural',
+    hoodieStyle: 'pullover',
+    hasUndershirt: true,
+    hasPantChain: true,
+    hasHoodieLogo: true,
     hasEarrings: false,
     hasChain: false,
     hasGlasses: false,
     hasBandana: false,
     hasNoseRing: false,
+    shoeStyle: 'nike_dunk',
   },
   proportions: { weight: 108, height: 1.05, width: 1.1 },
   stats: { speed: 1.0, jump: 0.95, air: 0.95, fall: 1.15 },

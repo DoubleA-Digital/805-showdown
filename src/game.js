@@ -9,14 +9,28 @@ import { CHARACTERS } from './characters/index.js';
 import { checkHitboxes } from './physics.js';
 import { CPU } from './cpu.js';
 import { WeaponManager } from './weapon.js';
+import {
+  drawLoadingScreen,
+  drawVersusBackdrop,
+  drawVersusCard,
+  drawVersusEmblem,
+  drawStagePreviewCard,
+  drawVersusFooter,
+  drawCountdown,
+  drawScreenFlash,
+  drawFade,
+} from './ui_screens.js';
+import { LOADING_CONFIG, VS_CONFIG } from './config/stage_themes.js';
 
 // ── Game state enum ───────────────────────────────────────────────────────
 
 const GAME_STATE = {
+  LOADING: 'loading',
   TITLE: 'title',
   CHAR_SELECT: 'char_select',
   STAGE_SELECT: 'stage_select',
   VS_SCREEN: 'vs_screen',
+  INTRO: 'intro',          // 3-2-1-FIGHT countdown before MATCH
   MATCH: 'match',
   RESULTS: 'results',
 };
@@ -36,9 +50,22 @@ class Game {
     this.effects = new EffectManager();
     this.hud = new HUD();
 
-    this.gameState = GAME_STATE.TITLE;
+    this.gameState = GAME_STATE.LOADING;
     this.frame = 0;
     this.matchTimer = C.FPS * 180; // 3-minute match
+
+    // Loading screen state
+    this.loadingFrame = 0;
+    this.loadingProgress = 0;
+    this.loadingDone = false;
+
+    // Intro countdown state
+    this.introFrame = 0;
+    this.flashFrame = 0;        // counts down a global flash effect
+
+    // Generic transition fade (1 = fully black, 0 = clear)
+    this.transitionAlpha = 0;
+    this.transitionTarget = 0;
 
     // Character select
     this.selectedChar = { p1: 0, p2: 1 };
@@ -93,7 +120,19 @@ class Game {
     this.input.update();
     this.frame++;
 
+    // Tick the global transition fade toward its target
+    const fadeStep = 0.04;
+    if (this.transitionAlpha < this.transitionTarget) {
+      this.transitionAlpha = Math.min(this.transitionTarget, this.transitionAlpha + fadeStep);
+    } else if (this.transitionAlpha > this.transitionTarget) {
+      this.transitionAlpha = Math.max(this.transitionTarget, this.transitionAlpha - fadeStep);
+    }
+    if (this.flashFrame > 0) this.flashFrame--;
+
     switch (this.gameState) {
+      case GAME_STATE.LOADING:
+        this._updateLoading();
+        break;
       case GAME_STATE.TITLE:
         this._updateTitle();
         break;
@@ -105,6 +144,9 @@ class Game {
         break;
       case GAME_STATE.VS_SCREEN:
         this._updateVSScreen();
+        break;
+      case GAME_STATE.INTRO:
+        this._updateIntro();
         break;
       case GAME_STATE.MATCH:
         this._updateMatch();
@@ -135,6 +177,9 @@ class Game {
     uiCtx.clearRect(0, 0, C.W, C.H);
 
     switch (this.gameState) {
+      case GAME_STATE.LOADING:
+        this._renderLoading(ctx, uiCtx);
+        break;
       case GAME_STATE.TITLE:
         this._renderTitle(ctx, uiCtx);
         break;
@@ -147,6 +192,11 @@ class Game {
       case GAME_STATE.VS_SCREEN:
         this._renderVSScreen(ctx, uiCtx);
         break;
+      case GAME_STATE.INTRO:
+        // The match is also drawn underneath; intro renders the countdown overlay on top
+        this._renderMatch(ctx, uiCtx);
+        this._renderIntro(uiCtx);
+        break;
       case GAME_STATE.MATCH:
         this._renderMatch(ctx, uiCtx);
         break;
@@ -155,8 +205,72 @@ class Game {
         break;
     }
 
+    // Top-most: global transition fade + flash
+    if (this.transitionAlpha > 0) drawFade(uiCtx, this.transitionAlpha, 'out');
+    if (this.flashFrame > 0) {
+      const a = this.flashFrame / VS_CONFIG.flashFrames;
+      drawScreenFlash(uiCtx, a, '#FFFFFF');
+    }
+
     ctx.restore();
     uiCtx.restore();
+  }
+
+  // ── LOADING ─────────────────────────────────────────────────────────────
+
+  _updateLoading() {
+    this.loadingFrame++;
+    const dur = LOADING_CONFIG.durationFrames;
+    this.loadingProgress = Math.min(1, this.loadingFrame / dur);
+    if (this.loadingFrame >= dur && !this.loadingDone) {
+      this.loadingDone = true;
+      this.transitionTarget = 1;
+    }
+    // Once fully faded, swap to TITLE and fade back in
+    if (this.loadingDone && this.transitionAlpha >= 0.99) {
+      this.gameState = GAME_STATE.TITLE;
+      this.titleFrame = 0;
+      this.titleReady = false;
+      this.transitionTarget = 0;
+    }
+    // Allow skipping with any button after halfway
+    if (this.loadingFrame > 60 &&
+        (this.input.justPressed('p1', 'light') || this.input.justPressed('p1', 'heavy') ||
+         this.input.justPressed('p1', 'shield'))) {
+      this.loadingFrame = dur;
+    }
+  }
+
+  _renderLoading(ctx, uiCtx) {
+    const fadeIn = Math.min(1, this.loadingFrame / LOADING_CONFIG.fadeFrames);
+    drawLoadingScreen(ctx, this.loadingFrame, this.loadingProgress, fadeIn);
+  }
+
+  // ── INTRO COUNTDOWN ─────────────────────────────────────────────────────
+
+  _updateIntro() {
+    this.introFrame++;
+    // Physics paused during the dramatic countdown — effects tick from main update loop.
+    const totalCountdown = VS_CONFIG.countdownFrames * 3 + VS_CONFIG.fightFrames;
+    if (this.introFrame >= totalCountdown) {
+      this.gameState = GAME_STATE.MATCH;
+      this.flashFrame = VS_CONFIG.flashFrames;
+      this.effects.shake.add(C.SHAKE_HEAVY);
+      this.effects.announce('FIGHT!', '#FFB347');
+      this.frame = 0;
+    }
+  }
+
+  _renderIntro(uiCtx) {
+    const cd = VS_CONFIG.countdownFrames;
+    const fightStart = cd * 3;
+    const f = this.introFrame;
+    let label = '3', color = '#7BB7FF', t;
+    if (f < cd)            { label = '3'; color = '#7BB7FF'; t = f / cd; }
+    else if (f < cd * 2)   { label = '2'; color = '#A4ECF8'; t = (f - cd) / cd; }
+    else if (f < cd * 3)   { label = '1'; color = '#FFE0A0'; t = (f - cd * 2) / cd; }
+    else                   { label = 'FIGHT!'; color = '#FFB347'; t = (f - fightStart) / VS_CONFIG.fightFrames; }
+    drawCountdown(uiCtx, label, t, color);
   }
 
   // ── TITLE ──────────────────────────────────────────────────────────────
@@ -168,18 +282,45 @@ class Game {
     if (this.titleReady &&
         (this.input.justPressed('p1', 'light') || this.input.justPressed('p1', 'heavy') ||
          this.input.justPressed('p1', 'up') || this.input.justPressed('p2', 'light'))) {
+      this.flashFrame = VS_CONFIG.flashFrames;
       this.gameState = GAME_STATE.CHAR_SELECT;
       this.frame = 0;
     }
   }
 
   _renderTitle(ctx) {
-    // Background
+    // Fantasy backdrop matching the loading screen vibe
     const bgGrad = ctx.createLinearGradient(0, 0, 0, C.H);
-    bgGrad.addColorStop(0, '#0A0A1A');
-    bgGrad.addColorStop(1, '#1A0A0A');
+    bgGrad.addColorStop(0, '#0A0823');
+    bgGrad.addColorStop(0.5, '#15123E');
+    bgGrad.addColorStop(1, '#1A0E36');
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, C.W, C.H);
+    // Stars
+    for (let i = 0; i < 60; i++) {
+      const sx = (i * 137.31) % C.W;
+      const sy = (i * 91.7) % 360;
+      const tw = 0.3 + Math.sin(this.frame * 0.04 + i) * 0.3;
+      ctx.fillStyle = `rgba(255,255,255,${tw})`;
+      ctx.fillRect(sx, sy, 1.4, 1.4);
+    }
+    // Light beams
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 5; i++) {
+      const angle = lerp(-0.6, 0.6, i / 4);
+      ctx.save();
+      ctx.translate(640, -40);
+      ctx.rotate(angle);
+      const lg = ctx.createLinearGradient(0, 0, 0, 720);
+      lg.addColorStop(0, 'rgba(120,160,255,0.16)');
+      lg.addColorStop(0.7, 'rgba(120,160,255,0.04)');
+      lg.addColorStop(1, 'rgba(120,160,255,0)');
+      ctx.fillStyle = lg;
+      ctx.fillRect(-90, 0, 180, 720);
+      ctx.restore();
+    }
+    ctx.restore();
 
     // Animated character silhouettes in background
     const silColors = CHARACTERS.map(c => c.palette.aura);
@@ -590,154 +731,71 @@ class Game {
   _updateVSScreen() {
     this.vsScreenTimer--;
     if (this.vsScreenTimer <= 0) {
-      this.gameState = GAME_STATE.MATCH;
+      // Brief flash, then enter INTRO countdown overlaid on the match
+      this.flashFrame = VS_CONFIG.flashFrames;
+      this.gameState = GAME_STATE.INTRO;
+      this.introFrame = 0;
       this.frame = 0;
-      this.effects.announce('FIGHT!', '#FF4400');
     }
   }
 
   _renderVSScreen(ctx) {
-    const t = 1 - this.vsScreenTimer / 180;
+    const t = 1 - this.vsScreenTimer / VS_CONFIG.vsScreenFrames;
     const p1Char = CHARACTERS[this.selectedChar.p1];
     const p2Char = CHARACTERS[this.selectedChar.p2];
     const stageName = STAGE_LIST[this.selectedStage];
     const stage = STAGES[stageName];
 
-    // Stage background (dimmed)
-    ctx.save();
-    ctx.globalAlpha = 0.35;
-    if (stage && stage.draw) stage.draw(ctx, this.frame);
-    ctx.restore();
+    // Diagonal split fantasy backdrop with energy streaks
+    drawVersusBackdrop(ctx, this.frame, '#4488FF', '#FF4444');
 
-    // Dark overlay
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
-    ctx.fillRect(0, 0, C.W, C.H);
-
-    // Dramatic center divider slash
-    const slashAlpha = Math.min(1, t * 4);
-    ctx.save();
-    ctx.globalAlpha = slashAlpha * 0.6;
-    ctx.beginPath();
-    ctx.moveTo(C.W/2 - 60, 0);
-    ctx.lineTo(C.W/2 + 60, C.H);
-    ctx.lineTo(C.W/2 + 80, C.H);
-    ctx.lineTo(C.W/2 - 40, 0);
-    ctx.closePath();
-    const slashGrad = ctx.createLinearGradient(C.W/2 - 60, 0, C.W/2 + 60, C.H);
-    slashGrad.addColorStop(0, '#4488FF44');
-    slashGrad.addColorStop(0.5, '#FFDD0088');
-    slashGrad.addColorStop(1, '#FF444444');
-    ctx.fillStyle = slashGrad;
-    ctx.fill();
-    ctx.restore();
-
-    // P1 portrait panel (slides in from left)
-    const p1Slide = Math.max(0, 1 - Math.pow(1 - Math.min(1, t * 3), 2));
-    const p1X = lerp(-250, 230, p1Slide);
-    ctx.save();
-    // P1 color wash
-    ctx.globalAlpha = 0.15 * p1Slide;
-    ctx.fillStyle = '#4488FF';
-    ctx.fillRect(0, 0, C.W/2, C.H);
-    ctx.restore();
-    // P1 portrait
-    ctx.save();
-    ctx.globalAlpha = p1Slide;
-    // Aura glow
-    const p1Aura = ctx.createRadialGradient(p1X, 360, 20, p1X, 360, 180);
-    p1Aura.addColorStop(0, p1Char.palette.aura + '66');
-    p1Aura.addColorStop(1, p1Char.palette.aura + '00');
-    ctx.fillStyle = p1Aura;
-    ctx.beginPath();
-    ctx.arc(p1X, 360, 180, 0, Math.PI * 2);
-    ctx.fill();
-    // Large portrait
-    drawPortrait(ctx, p1Char, p1X, 360, 140);
-    ctx.restore();
-    // P1 name
-    ctx.save();
-    ctx.globalAlpha = p1Slide;
-    ctx.font = '900 28px "Arial Black", Arial';
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#4488FF';
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 4;
-    ctx.strokeText(p1Char.name.toUpperCase(), 30, 580);
-    ctx.fillText(p1Char.name.toUpperCase(), 30, 580);
-    ctx.font = 'bold 12px Arial';
-    ctx.fillStyle = '#aaa';
-    ctx.fillText('PLAYER 1', 30, 598);
-    ctx.restore();
-
-    // P2 portrait panel (slides in from right)
-    const p2Slide = Math.max(0, 1 - Math.pow(1 - Math.min(1, t * 3), 2));
-    const p2X = lerp(C.W + 250, C.W - 230, p2Slide);
-    ctx.save();
-    ctx.globalAlpha = 0.15 * p2Slide;
-    ctx.fillStyle = '#FF4444';
-    ctx.fillRect(C.W/2, 0, C.W/2, C.H);
-    ctx.restore();
-    ctx.save();
-    ctx.globalAlpha = p2Slide;
-    const p2Aura = ctx.createRadialGradient(p2X, 360, 20, p2X, 360, 180);
-    p2Aura.addColorStop(0, p2Char.palette.aura + '66');
-    p2Aura.addColorStop(1, p2Char.palette.aura + '00');
-    ctx.fillStyle = p2Aura;
-    ctx.beginPath();
-    ctx.arc(p2X, 360, 180, 0, Math.PI * 2);
-    ctx.fill();
-    drawPortrait(ctx, p2Char, p2X, 360, 140);
-    ctx.restore();
-    ctx.save();
-    ctx.globalAlpha = p2Slide;
-    ctx.font = '900 28px "Arial Black", Arial';
-    ctx.textAlign = 'right';
-    ctx.fillStyle = '#FF4444';
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 4;
-    ctx.strokeText(p2Char.name.toUpperCase(), C.W - 30, 580);
-    ctx.fillText(p2Char.name.toUpperCase(), C.W - 30, 580);
-    ctx.font = 'bold 12px Arial';
-    ctx.fillStyle = '#aaa';
-    ctx.fillText('PLAYER 2', C.W - 30, 598);
-    ctx.restore();
-
-    // VS text (pops in at center)
-    const vsT = Math.min(1, t * 5);
-    const vsScale = 1 + Math.pow(1 - vsT, 3) * 2;
-    if (vsT > 0) {
-      ctx.save();
-      ctx.translate(C.W / 2, C.H / 2);
-      ctx.scale(vsScale, vsScale);
-      ctx.globalAlpha = vsT;
-      ctx.font = '900 96px "Arial Black", Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.shadowColor = '#FFE000';
-      ctx.shadowBlur = 30 * vsT;
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = 12;
-      ctx.strokeText('VS', 0, 0);
-      const vsGrad = ctx.createLinearGradient(-80, -60, 80, 60);
-      vsGrad.addColorStop(0, '#FFE000');
-      vsGrad.addColorStop(0.5, '#FF8C00');
-      vsGrad.addColorStop(1, '#FF4500');
-      ctx.fillStyle = vsGrad;
-      ctx.fillText('VS', 0, 0);
-      ctx.restore();
-      ctx.textBaseline = 'alphabetic';
-    }
-
-    // Stage name at top
+    // Stage name banner
     ctx.save();
     ctx.globalAlpha = Math.min(1, t * 2);
-    ctx.font = 'bold 14px Arial';
+    ctx.font = '900 16px "Arial Black", Arial';
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#888';
-    ctx.letterSpacing = '4px';
-    ctx.fillText(stage?.name?.toUpperCase() || 'STAGE', C.W/2, 60);
-    ctx.letterSpacing = '0px';
+    ctx.fillStyle = '#9FC8FF';
+    ctx.shadowColor = '#5BA8FF';
+    ctx.shadowBlur = 14;
+    ctx.fillText('— STAGE —', C.W / 2, 56);
+    ctx.font = '900 22px "Arial Black", Arial';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(stage?.name?.toUpperCase() || 'STAGE', C.W / 2, 88);
     ctx.restore();
+
+    // Player cards (slide in)
+    const cardW = 360, cardH = 460;
+    const slide = Math.max(0, 1 - Math.pow(1 - Math.min(1, t * 2.5), 2));
+    const p1X = lerp(-cardW, 60, slide);
+    const p2X = lerp(C.W, C.W - 60 - cardW, slide);
+    drawVersusCard(ctx, this.frame, {
+      x: p1X, y: 130, w: cardW, h: cardH,
+      char: p1Char, isP1: true, slideIn: slide,
+      drawPortraitFn: drawPortrait,
+    });
+    drawVersusCard(ctx, this.frame, {
+      x: p2X, y: 130, w: cardW, h: cardH,
+      char: p2Char, isP1: false, slideIn: slide,
+      drawPortraitFn: drawPortrait,
+    });
+
+    // Stage preview thumbnail
+    const previewW = 200, previewH = 112;
+    const previewX = (C.W - previewW) / 2;
+    const previewY = 130;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, t * 2);
+    drawStagePreviewCard(ctx, this.frame, stage, previewX, previewY, previewW, previewH);
+    ctx.restore();
+
+    // VS emblem (pops in)
+    const vsT = Math.min(1, Math.max(0, t * 1.6 - 0.2));
+    if (vsT > 0) {
+      drawVersusEmblem(ctx, this.frame, vsT);
+    }
+
+    // Footer status
+    drawVersusFooter(ctx, this.frame, this.vsScreenTimer < 30 ? 'GET READY!' : 'LOADING FIGHT');
   }
 
   // ── MATCH START ────────────────────────────────────────────────────────
@@ -1216,9 +1274,13 @@ class Game {
 window.addEventListener('DOMContentLoaded', () => {
   const loading = document.getElementById('loading');
 
-  // Short delay to show loading screen
+  // Hide the basic HTML loader almost immediately — the polished canvas
+  // loading screen takes over from here.
   setTimeout(() => {
-    if (loading) loading.style.display = 'none';
+    if (loading) {
+      loading.style.opacity = '0';
+      setTimeout(() => loading.style.display = 'none', 350);
+    }
     window.game = new Game();
 
     // Debug mode toggle
@@ -1252,5 +1314,5 @@ window.addEventListener('DOMContentLoaded', () => {
         console.log('Weapon spawned!');
       }
     });
-  }, 800);
+  }, 200);
 });

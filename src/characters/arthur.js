@@ -1,21 +1,29 @@
 export default {
   name: 'Arthur',
   palette: {
-    skin: '#F5CBA7',
-    hair: '#9B7B4A',
+    skin: '#E8C5A0',         // light skin
+    hair: '#B8895A',         // dirty blonde / light brown
     eye: '#6B4A2A',
-    outfit1: '#1B2D5B',  // navy hoodie
-    outfit2: '#888888',  // gray sweats
-    shoes: '#F5F5F5',    // white Vans
+    outfit1: '#2A2E36',      // dark gray zip hoodie
+    outfit2: '#1A2440',      // navy cargo pants
+    shoes: '#1F2438',        // navy Dunks
+    shoesAccent: '#F5F5F5',  // white panel
+    undertop: '#E8E8E8',     // light tee peek
+    chain: '#C8C8C8',        // silver chain
     aura: '#00BFFF',
   },
   features: {
     hairStyle: 'straight_bangs',
+    hoodieStyle: 'zip',
+    hasHoodUp: true,
+    hasUndershirt: true,
+    hasPantChain: true,
     hasEarrings: false,
     hasChain: false,
     hasGlasses: false,
     hasBandana: false,
     hasNoseRing: false,
+    shoeStyle: 'nike_dunk',
   },
   proportions: { weight: 88, height: 1.0, width: 0.95 },
   stats: { speed: 1.05, jump: 1.1, air: 1.15, fall: 0.9 },

@@ -1,21 +1,30 @@
 export default {
   name: 'Ajay',
   palette: {
-    skin: '#7B4A2D',
-    hair: '#100808',
+    skin: '#A06A48',
+    hair: '#0A0A0A',
     eye: '#3A1A0A',
-    outfit1: '#CC2222',  // red flannel
-    outfit2: '#3A5CB5',  // blue jeans
-    shoes: '#F5F5F5',    // Air Force 1s
+    outfit1: '#101014',      // black puffy zip jacket
+    outfit2: '#0A0A0A',      // black cargo pants
+    shoes: '#B22020',        // red Jordan 1s
+    shoesAccent: '#F5F5F5',  // white panel
+    innerLayer: '#9B1818',   // red hoodie underneath
+    undertop: '#9B1818',     // red layer peek
+    chain: '#C8C8C8',
     aura: '#DC143C',
   },
   features: {
     hairStyle: 'wavy',
+    hoodieStyle: 'zip',
+    hasInnerHoodie: true,
+    hasUndershirt: true,
+    hasPantChain: true,
     hasEarrings: false,
     hasChain: false,
     hasGlasses: false,
     hasBandana: false,
     hasNoseRing: false,
+    shoeStyle: 'jordan1',
   },
   proportions: { weight: 96, height: 1.0, width: 1.0 },
   stats: { speed: 1.1, jump: 1.0, air: 1.05, fall: 1.0 },

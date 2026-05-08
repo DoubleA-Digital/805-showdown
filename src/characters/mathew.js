@@ -1,21 +1,30 @@
 export default {
   name: 'Mathew',
   palette: {
-    skin: '#C4845A',
-    hair: '#0D0D0D',
+    skin: '#B58660',
+    hair: '#3A2010',         // dark brown
     eye: '#3A2510',
-    outfit1: '#1A6FCC',  // electric blue track jacket
-    outfit2: '#111111',  // black shorts
-    shoes: '#CCFF00',    // neon Nike Air Max
-    aura: '#FFE000',
+    outfit1: '#1F4ED8',      // royal blue Nike hoodie
+    outfit2: '#0A0A0A',      // black cargo pants
+    shoes: '#1F4ED8',        // blue Dunks
+    shoesAccent: '#F5F5F5',
+    chain: '#C8C8C8',
+    accent: '#FFFFFF',       // Nike swoosh
+    aura: '#1F4ED8',
   },
   features: {
-    hairStyle: 'mohawk',
+    hairStyle: 'spiky_brown',
+    hoodieStyle: 'pullover',
+    hasUndershirt: false,
+    hasPantChain: true,
+    hasHoodieLogo: true,
+    hasSmile: true,
     hasEarrings: false,
     hasChain: false,
     hasGlasses: false,
     hasBandana: false,
     hasNoseRing: false,
+    shoeStyle: 'nike_dunk',
   },
   proportions: { weight: 82, height: 0.92, width: 0.9 },
   stats: { speed: 1.2, jump: 1.1, air: 1.2, fall: 1.0 },

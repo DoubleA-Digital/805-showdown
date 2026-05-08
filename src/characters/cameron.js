@@ -1,21 +1,31 @@
 export default {
   name: 'Cameron',
   palette: {
-    skin: '#C19A6B',
-    hair: '#1A1008',
+    skin: '#C49678',
+    hair: '#1A1208',
     eye: '#4A3020',
-    outfit1: '#AAAAAA',  // heather gray SANTOS hoodie
-    outfit2: '#111111',  // black track pants
-    shoes: '#CCCCCC',    // gray Nike Dunks
+    outfit1: '#5A5A5E',      // gray zip hoodie open
+    outfit2: '#2A2A2A',      // dark cargo pants
+    shoes: '#5A5A5E',        // gray Dunks
+    shoesAccent: '#E8E8E8',
+    innerLayer: '#7A7A7E',   // gray hoodie underneath
+    undertop: '#9A9A9E',     // light gray peek
+    chain: '#C8C8C8',
     aura: '#20B2AA',
   },
   features: {
-    hairStyle: 'medium_sweep',
+    hairStyle: 'short_messy',
+    hoodieStyle: 'zip',
+    hasInnerHoodie: true,
+    hasUndershirt: true,
+    hasPantChain: true,
+    hasSmile: true,
     hasEarrings: false,
     hasChain: false,
     hasGlasses: false,
     hasBandana: false,
     hasNoseRing: false,
+    shoeStyle: 'nike_dunk',
   },
   proportions: { weight: 94, height: 1.0, width: 1.0 },
   stats: { speed: 1.05, jump: 1.15, air: 1.05, fall: 1.05 },

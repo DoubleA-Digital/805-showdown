@@ -1,24 +1,34 @@
 export default {
   name: 'Harshith',
   palette: {
-    skin: '#6B3A2A',
+    skin: '#A06A45',         // tan brown skin
     hair: '#0A0A0A',
     eye: '#2A1A0A',
-    outfit1: '#111111',  // black oversized hoodie
-    outfit2: '#0A0A0A',  // black jeans
-    shoes: '#B8956A',    // wheat Timberlands
-    bandana1: '#111111',
+    outfit1: '#0F0F12',      // black oversized hoodie
+    outfit2: '#0A0A0A',      // black pants
+    shoes: '#0F0F12',        // black Dunks
+    shoesAccent: '#F5F5F5',
+    undertop: '#F0F0F0',
+    bandana1: '#0A0A0A',
     bandana2: '#FFFFFF',
-    accent: '#FFD700',   // gold chain
+    chain: '#C8C8C8',        // silver pant chain
+    facialHair: '#0A0A0A',
+    accent: '#C8C8C8',
     aura: '#FFD700',
   },
   features: {
-    hairStyle: 'medium_sweep',
-    hasEarrings: false,
-    hasChain: true,
+    hairStyle: 'short_messy',
+    hoodieStyle: 'pullover',
+    hasUndershirt: true,
+    hasPantChain: true,
+    hasMustache: true,
+    hasGoatee: true,
+    hasEarrings: true,
+    hasChain: false,
     hasGlasses: false,
     hasBandana: true,
     hasNoseRing: false,
+    shoeStyle: 'nike_dunk',
   },
   proportions: { weight: 112, height: 1.05, width: 1.12 },
   stats: { speed: 0.95, jump: 0.95, air: 0.95, fall: 1.2 },

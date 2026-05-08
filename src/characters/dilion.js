@@ -1,21 +1,29 @@
 export default {
   name: 'Dilion',
   palette: {
-    skin: '#F5CBA7',
-    hair: '#8B6914',
+    skin: '#E8C2A0',
+    hair: '#8B5C2A',         // medium messy brown
     eye: '#5A3A1A',
-    outfit1: '#F0F0F0',  // white vintage band tee
-    outfit2: '#C8AD80',  // khaki cargo pants
-    shoes: '#1A1A1A',    // black/white Old Skool Vans
+    outfit1: '#101014',      // black pullover hoodie
+    outfit2: '#0A0A0A',      // black cargo pants
+    shoes: '#0F0F12',        // black/white Dunks
+    shoesAccent: '#F5F5F5',
+    undertop: '#F0F0F0',
+    chain: '#C8C8C8',        // silver pant chain
     aura: '#FF69B4',
   },
   features: {
-    hairStyle: 'medium_brown',
+    hairStyle: 'long_wavy',
+    hoodieStyle: 'pullover',
+    hasUndershirt: true,
+    hasPantChain: true,
     hasEarrings: false,
     hasChain: false,
     hasGlasses: false,
     hasBandana: false,
-    hasNoseRing: true,
+    hasNoseRing: false,
+    hasBrowPiercing: true,
+    shoeStyle: 'nike_dunk',
   },
   proportions: { weight: 85, height: 0.97, width: 0.93 },
   stats: { speed: 1.1, jump: 1.05, air: 1.15, fall: 0.88 },

@@ -1,22 +1,29 @@
 export default {
   name: 'Ram',
   palette: {
-    skin: '#C4864A',
-    hair: '#1A1008',
-    eye: '#4A3020',
-    outfit1: '#F0F0F0',  // white tee
-    outfit2: '#2C2C2C',  // black cargo pants
-    shoes: '#CC2222',    // Jordan 1s red
-    accent: '#FFD700',   // gold chain
+    skin: '#A06A40',
+    hair: '#0A0A0A',
+    eye: '#3A2010',
+    outfit1: '#101014',      // black pullover hoodie
+    outfit2: '#0A0A0A',      // black cargo pants
+    shoes: '#0F0F12',        // black Dunks
+    shoesAccent: '#F5F5F5',  // white panel
+    undertop: '#F5F5F5',     // white tee peek
+    chain: '#C8C8C8',        // silver pant chain
+    accent: '#FF8C00',
     aura: '#FF8C00',
   },
   features: {
     hairStyle: 'curly',
+    hoodieStyle: 'pullover',
+    hasUndershirt: true,
+    hasPantChain: true,
     hasEarrings: true,
-    hasChain: true,
+    hasChain: false,
     hasGlasses: false,
     hasBandana: false,
     hasNoseRing: false,
+    shoeStyle: 'nike_dunk',
   },
   proportions: { weight: 92, height: 1.0, width: 1.0 },
   stats: { speed: 1.15, jump: 1.05, air: 1.1, fall: 0.95 },

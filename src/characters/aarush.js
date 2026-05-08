@@ -1,21 +1,30 @@
 export default {
   name: 'Aarush',
   palette: {
-    skin: '#C4845A',
-    hair: '#0D0D0D',
+    skin: '#B5825A',
+    hair: '#0A0A0A',
     eye: '#3A2510',
-    outfit1: '#9B6DC0',  // lavender/purple hoodie
-    outfit2: '#1A1A2A',  // black slim joggers
-    shoes: '#AAAAAA',    // gray Yeezys
+    outfit1: '#0F0F12',      // black Nike hoodie
+    outfit2: '#0A0A0A',      // black cargo pants
+    shoes: '#0F0F12',        // black Dunks
+    shoesAccent: '#F5F5F5',
+    undertop: '#F0F0F0',
+    chain: '#C8C8C8',
+    accent: '#FFFFFF',       // Nike swoosh
     aura: '#9B59B6',
   },
   features: {
-    hairStyle: 'straight_side',
+    hairStyle: 'short_neat',
+    hoodieStyle: 'pullover',
+    hasUndershirt: true,
+    hasPantChain: true,
+    hasHoodieLogo: true,
     hasEarrings: false,
     hasChain: false,
     hasGlasses: true,
     hasBandana: false,
     hasNoseRing: false,
+    shoeStyle: 'nike_dunk',
   },
   proportions: { weight: 90, height: 1.0, width: 0.97 },
   stats: { speed: 1.0, jump: 1.0, air: 1.1, fall: 0.95 },
