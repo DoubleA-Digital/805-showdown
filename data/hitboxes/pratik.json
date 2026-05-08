@@ -1,0 +1,5 @@
+{
+  "name": "Pratik",
+  "hurtbox": { "x": -18, "y": -75, "w": 36, "h": 75 },
+  "_note": "Hitbox data mirrored from src/characters/pratik.js — edit that file and regenerate for tuning"
+}
