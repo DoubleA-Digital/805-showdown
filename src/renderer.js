@@ -529,6 +529,9 @@ export function drawCharacter(ctx, fighter, gameFrame) {
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
+  // Per-character outfit detail
+  if (data?.name) _drawOutfitDetail(ctx, data.name.toLowerCase(), palette, torsoTop, tw, th);
+
   ctx.restore();
 
   // Front leg
@@ -836,6 +839,125 @@ function _drawFace(ctx, headY, state, palette) {
     ctx.arc(0, headY + 6, 5, 0, Math.PI);
     ctx.stroke();
   }
+}
+
+// ── Per-character outfit chest details ────────────────────────────────────
+
+function _drawOutfitDetail(ctx, charName, palette, torsoTop, tw, th) {
+  ctx.save();
+  switch (charName) {
+    case 'ram':
+      // Gold chain arc on white tee
+      ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 2.2;
+      ctx.beginPath(); ctx.arc(0, torsoTop + th * 0.36, 8, -Math.PI * 0.65, Math.PI * 1.65); ctx.stroke();
+      // Chain links
+      ctx.strokeStyle = '#DAA520'; ctx.lineWidth = 1;
+      for (let i = -2; i <= 2; i++) {
+        ctx.beginPath(); ctx.arc(i * 3.5, torsoTop + th * 0.36 + 7, 2, 0, Math.PI * 2); ctx.stroke();
+      }
+      break;
+
+    case 'arthur':
+      // Hoodie drawstring cords
+      ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(-3, torsoTop + 4); ctx.lineTo(-5, torsoTop + 20);
+      ctx.moveTo(3, torsoTop + 4); ctx.lineTo(5, torsoTop + 20);
+      ctx.stroke();
+      // Front kangaroo pocket
+      ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.roundRect(-12, torsoTop + th * 0.52, 24, 14, 3); ctx.fill(); ctx.stroke();
+      break;
+
+    case 'matteen':
+      // Leather jacket lapels (V-shape opening)
+      ctx.fillStyle = '#0A0A0A';
+      ctx.beginPath();
+      ctx.moveTo(-tw / 2 + 2, torsoTop + 1);
+      ctx.lineTo(0, torsoTop + th * 0.44);
+      ctx.lineTo(-tw / 2 + 2, torsoTop + th * 0.52);
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(tw / 2 - 2, torsoTop + 1);
+      ctx.lineTo(0, torsoTop + th * 0.44);
+      ctx.lineTo(tw / 2 - 2, torsoTop + th * 0.52);
+      ctx.closePath(); ctx.fill();
+      // Red accent stripe across left shoulder
+      ctx.fillStyle = '#CC2222';
+      ctx.fillRect(-tw / 2, torsoTop, tw, 4);
+      // Center button row
+      ctx.fillStyle = '#333'; ctx.strokeStyle = '#555'; ctx.lineWidth = 1;
+      for (let b = 0; b < 3; b++) {
+        ctx.beginPath(); ctx.arc(0, torsoTop + th * 0.55 + b * 6, 1.5, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+      }
+      break;
+
+    case 'ajay':
+      // Flannel plaid crosshatch on red
+      ctx.save();
+      ctx.beginPath(); ctx.roundRect(-tw / 2, torsoTop, tw, th, 6); ctx.clip();
+      ctx.strokeStyle = 'rgba(0,0,0,0.14)'; ctx.lineWidth = 1;
+      for (let px = -tw / 2; px < tw / 2; px += 6) {
+        ctx.beginPath(); ctx.moveTo(px, torsoTop); ctx.lineTo(px, torsoTop + th); ctx.stroke();
+      }
+      ctx.strokeStyle = 'rgba(255,255,255,0.09)'; ctx.lineWidth = 1;
+      for (let py = torsoTop; py < torsoTop + th; py += 8) {
+        ctx.beginPath(); ctx.moveTo(-tw / 2, py); ctx.lineTo(tw / 2, py); ctx.stroke();
+      }
+      ctx.restore();
+      break;
+
+    case 'cameron':
+      // SANTOS text on chest
+      ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.font = 'bold 6px "Arial Black", Arial';
+      ctx.textAlign = 'center'; ctx.fillText('SANTOS', 0, torsoTop + th * 0.3);
+      // Front hoodie pocket
+      ctx.fillStyle = 'rgba(0,0,0,0.1)'; ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.roundRect(-13, torsoTop + th * 0.52, 26, 14, 3); ctx.fill(); ctx.stroke();
+      break;
+
+    case 'aarush':
+      // Kangaroo pocket with divider
+      ctx.fillStyle = 'rgba(0,0,0,0.13)'; ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.roundRect(-14, torsoTop + th * 0.48, 28, 17, 3); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, torsoTop + th * 0.48); ctx.lineTo(0, torsoTop + th * 0.48 + 17); ctx.stroke();
+      break;
+
+    case 'pratik':
+      // Vintage graphic circle print on dark tee
+      ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(0, torsoTop + th * 0.38, 9, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.28)'; ctx.font = 'bold 5px Arial'; ctx.textAlign = 'center';
+      ctx.fillText('805', 0, torsoTop + th * 0.41);
+      break;
+
+    case 'mathew':
+      // Track jacket center zipper
+      ctx.strokeStyle = 'rgba(255,255,255,0.38)'; ctx.lineWidth = 1.5;
+      ctx.setLineDash([2, 2]);
+      ctx.beginPath(); ctx.moveTo(0, torsoTop + 3); ctx.lineTo(0, torsoTop + th - 4); ctx.stroke();
+      ctx.setLineDash([]);
+      // Side color stripes
+      ctx.fillStyle = palette.aura || '#FFE000'; ctx.globalAlpha = 0.45;
+      ctx.fillRect(tw / 2 - 7, torsoTop + 4, 5, th - 8);
+      ctx.fillRect(-tw / 2 + 2, torsoTop + 4, 5, th - 8);
+      ctx.globalAlpha = 1;
+      break;
+
+    case 'harshith':
+      // Oversized hoodie front pocket
+      ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.roundRect(-15, torsoTop + th * 0.5, 30, 16, 3); ctx.fill(); ctx.stroke();
+      // Gold chain hint
+      ctx.strokeStyle = 'rgba(255,215,0,0.45)'; ctx.lineWidth = 1.8;
+      ctx.beginPath(); ctx.arc(0, torsoTop + th * 0.26, 7, -Math.PI * 0.6, Math.PI * 1.6); ctx.stroke();
+      break;
+
+    default:
+      break;
+  }
+  ctx.restore();
 }
 
 // ── Hair style map ────────────────────────────────────────────────────────
