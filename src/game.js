@@ -98,6 +98,7 @@ class Game {
 
     // Mouse state
     this.mouse = { x: 0, y: 0, clicked: false };
+    this._menuEnterPressed = false;
     this._initMouse();
 
     // Start loop
@@ -135,6 +136,10 @@ class Game {
       this.mouse.clicked = true;
     });
 
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Enter') this._menuEnterPressed = true;
+    });
+
     // Reset cursor when leaving canvas
     target.addEventListener('mouseleave', () => {
       this.mouse.x = -9999;
@@ -158,6 +163,9 @@ class Game {
   _update() {
     this.input.update();
     this.mouse.clicked = false;
+    const menuEnter = this._menuEnterPressed;
+    this._menuEnterPressed = false;
+    this._menuEnterThisFrame = menuEnter;
     this.frame++;
 
     // Tick the global transition fade toward its target
@@ -519,13 +527,14 @@ class Game {
     const overCell = hoveredCell >= 0;
     this.uiCanvas.style.cursor = overCell ? 'pointer' : 'default';
 
-    // Mouse click on a cell confirms selection
+    // Mouse click locks in the highlighted character (visual selection, no advance yet)
     if (this.mouse.clicked && hoveredCell >= 0) {
-      this.gameState = GAME_STATE.STAGE_SELECT;
+      this.selectedChar[activeP] = hoveredCell;
+      this.mouse._charClickedCell = hoveredCell;
     }
 
-    // Confirm selection via keyboard
-    if (this.input.justPressed('p1', 'light') || this.input.justPressed('p1', 'heavy')) {
+    // Enter key or gamepad confirm advances to stage select
+    if (this._menuEnterThisFrame || this.input.justPressed('p1', 'light') || this.input.justPressed('p1', 'heavy')) {
       this.gameState = GAME_STATE.STAGE_SELECT;
     }
 
@@ -739,7 +748,7 @@ class Game {
     ctx.font = 'bold 13px Arial';
     ctx.textAlign = 'center';
     ctx.fillStyle = Math.floor(this.frame / 25) % 2 ? '#FFDD00' : '#886600';
-    ctx.fillText('G / H — Confirm   •   K — Back', C.W / 2, 710);
+    ctx.fillText('Click to Select   •   Enter / G / H — Confirm   •   K — Back', C.W / 2, 710);
   }
 
   // ── STAGE SELECT ───────────────────────────────────────────────────────
