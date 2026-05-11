@@ -357,31 +357,124 @@ class Game {
     if (this.titleFrame > 60) this.titleReady = true;
     if (!this.titleReady) return;
 
-    // Button hit-test: LOCAL 2P and ONLINE 2P
+    // ONLINE button hit-test (centred below logo)
     const mx = this.mouse.x, my = this.mouse.y;
-    const localBtn  = { x: C.W/2 - 280, y: 460, w: 240, h: 54 };
-    const onlineBtn = { x: C.W/2 +  40, y: 460, w: 240, h: 54 };
+    const onlineBtn = { x: C.W/2 - 130, y: 455, w: 260, h: 56 };
+    const inOnline = mx >= onlineBtn.x && mx <= onlineBtn.x+onlineBtn.w &&
+                     my >= onlineBtn.y && my <= onlineBtn.y+onlineBtn.h;
+    this._titleHover = inOnline ? 'online' : null;
 
-    const inBtn = (b) => mx >= b.x && mx <= b.x+b.w && my >= b.y && my <= b.y+b.h;
-
-    if (this.mouse.clicked) {
-      if (inBtn(localBtn)) {
-        this.flashFrame = VS_CONFIG.flashFrames;
-        this.onlineMode = false;
-        this.gameState = GAME_STATE.CHAR_SELECT;
-        this.charSelectPhase = 'p1';
-        this.selectedChar = { p1: 0, p2: 1 };
-        this.frame = 0;
-      } else if (inBtn(onlineBtn)) {
-        this.gameState = GAME_STATE.ONLINE_MENU;
-        this._onlineMenuMode = 'pick';
-        this._codeInput = '';
-        this._onlineStatusMsg = '';
-      }
+    if (this.mouse.clicked && inOnline) {
+      this._openOnlinePopup();
+      return;
     }
 
-    // Store hover for render
-    this._titleHover = inBtn(localBtn) ? 'local' : inBtn(onlineBtn) ? 'online' : null;
+    // Any key / any other click → local play
+    if (
+      this.input.justPressed('p1', 'light') || this.input.justPressed('p1', 'heavy') ||
+      this.input.justPressed('p1', 'up')    || this.input.justPressed('p2', 'light') ||
+      (this.mouse.clicked && !inOnline)
+    ) {
+      this.flashFrame = VS_CONFIG.flashFrames;
+      this.onlineMode = false;
+      this.gameState = GAME_STATE.CHAR_SELECT;
+      this.charSelectPhase = 'p1';
+      this.selectedChar = { p1: 0, p2: 1 };
+      this.frame = 0;
+    }
+  }
+
+  _openOnlinePopup() {
+    const popup   = document.getElementById('online-popup');
+    const codeEl  = document.getElementById('my-code');
+    const input   = document.getElementById('code-input');
+    const joinBtn = document.getElementById('join-btn');
+    const status  = document.getElementById('online-status');
+    const cancel  = document.getElementById('cancel-btn');
+    if (!popup) return;
+
+    // Reset
+    input.value = '';
+    joinBtn.disabled = true;
+    status.textContent = '';
+    status.className = '';
+    codeEl.textContent = '······';
+    popup.style.display = 'block';
+    input.focus();
+
+    // Auto-create host room immediately
+    this.net?.destroy();
+    this.net = new NetManager();
+    this.net.onReady = (code) => {
+      codeEl.textContent = code;
+    };
+    this.net.onConnect = () => {
+      status.textContent = '✓ Opponent connected — choosing fighters…';
+      status.className = '';
+      setTimeout(() => {
+        popup.style.display = 'none';
+        this.onlineMode = true;
+        this._onlineMyCharPicked = false;
+        this._onlineOppCharPicked = false;
+        this.charSelectPhase = 'p1';
+        this.selectedChar = { p1: 0, p2: 1 };
+        this.gameState = GAME_STATE.CHAR_SELECT;
+      }, 700);
+    };
+    this.net.onError = (msg) => {
+      status.textContent = 'Error: ' + msg;
+      status.className = 'err';
+    };
+    this.net.onData = (d) => this._handleNetData(d);
+    this.net.createGame();
+
+    // Code input → enable join button when 6 chars typed
+    input.oninput = () => {
+      const v = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+      input.value = v;
+      joinBtn.disabled = v.length < 6;
+    };
+
+    input.onkeydown = (e) => {
+      if (e.key === 'Enter' && input.value.length === 6) joinBtn.click();
+    };
+
+    joinBtn.onclick = () => {
+      const code = input.value.trim();
+      if (code.length !== 6) return;
+      // Switch from host → guest
+      this.net.destroy();
+      this.net = new NetManager();
+      status.textContent = 'Connecting…';
+      status.className = '';
+      joinBtn.disabled = true;
+      this.net.onConnect = () => {
+        status.textContent = '✓ Connected — choosing fighters…';
+        setTimeout(() => {
+          popup.style.display = 'none';
+          this.onlineMode = true;
+          this._onlineMyCharPicked = false;
+          this._onlineOppCharPicked = false;
+          this.charSelectPhase = 'p2';
+          this.selectedChar = { p1: 0, p2: 1 };
+          this.gameState = GAME_STATE.CHAR_SELECT;
+        }, 700);
+      };
+      this.net.onError = (msg) => {
+        status.textContent = 'Could not connect — check the code and try again.';
+        status.className = 'err';
+        joinBtn.disabled = false;
+      };
+      this.net.onData = (d) => this._handleNetData(d);
+      this.net.joinGame(code);
+    };
+
+    cancel.onclick = () => {
+      popup.style.display = 'none';
+      this.net?.destroy();
+      this.net = null;
+      this.onlineMode = false;
+    };
   }
 
   _renderTitle(ctx) {
@@ -499,39 +592,40 @@ class Game {
       ctx.fillText(char.name.toUpperCase(), px, py + 26);
     }
 
-    // Mode selection buttons
+    // Press any key + single ONLINE button
     if (this.titleReady) {
-      const buttons = [
-        { label: '🎮  LOCAL 2-PLAYER', x: C.W/2 - 280, color: '#4488FF', hover: this._titleHover === 'local' },
-        { label: '🌐  ONLINE 2-PLAYER', x: C.W/2 + 40,  color: '#FF8C00', hover: this._titleHover === 'online' },
-      ];
-      for (const btn of buttons) {
-        const bw = 240, bh = 54, by = 460;
-        ctx.save();
-        // Glow background
-        const grad = ctx.createLinearGradient(btn.x, by, btn.x, by + bh);
-        grad.addColorStop(0, btn.hover ? btn.color + 'CC' : btn.color + '44');
-        grad.addColorStop(1, btn.hover ? btn.color + '88' : btn.color + '22');
-        ctx.fillStyle = grad;
-        if (ctx.roundRect) ctx.roundRect(btn.x, by, bw, bh, 10);
-        else ctx.rect(btn.x, by, bw, bh);
-        ctx.fill();
-        // Border
-        ctx.strokeStyle = btn.color;
-        ctx.lineWidth = btn.hover ? 3 : 1.5;
-        ctx.shadowColor = btn.color;
-        ctx.shadowBlur = btn.hover ? 22 : 8;
-        if (ctx.roundRect) ctx.roundRect(btn.x, by, bw, bh, 10);
-        else ctx.rect(btn.x, by, bw, bh);
-        ctx.stroke();
-        // Label
-        ctx.font = '900 16px "Arial Black", Arial';
+      // "Press any key" hint
+      if (Math.floor(this.frame / 22) % 2 === 0) {
+        ctx.font = 'bold 17px Arial';
         ctx.textAlign = 'center';
-        ctx.fillStyle = '#fff';
-        ctx.shadowBlur = 0;
-        ctx.fillText(btn.label, btn.x + bw/2, by + 33);
-        ctx.restore();
+        ctx.fillStyle = '#888';
+        ctx.fillText('PRESS ANY KEY TO PLAY LOCAL', C.W / 2, 447);
       }
+
+      // Single ONLINE 2-PLAYER button
+      const bx = C.W/2 - 130, by2 = 458, bw = 260, bh = 56;
+      const hover = this._titleHover === 'online';
+      ctx.save();
+      const grad = ctx.createLinearGradient(bx, by2, bx, by2 + bh);
+      grad.addColorStop(0, hover ? '#FF8C00CC' : '#FF8C0044');
+      grad.addColorStop(1, hover ? '#FF450088' : '#FF450022');
+      ctx.fillStyle = grad;
+      if (ctx.roundRect) ctx.roundRect(bx, by2, bw, bh, 12);
+      else ctx.rect(bx, by2, bw, bh);
+      ctx.fill();
+      ctx.strokeStyle = '#FF8C00';
+      ctx.lineWidth = hover ? 3 : 1.5;
+      ctx.shadowColor = '#FF8C00';
+      ctx.shadowBlur = hover ? 26 : 10;
+      if (ctx.roundRect) ctx.roundRect(bx, by2, bw, bh, 12);
+      else ctx.rect(bx, by2, bw, bh);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.font = '900 16px "Arial Black", Arial';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#fff';
+      ctx.fillText('🌐  ONLINE 2-PLAYER', bx + bw/2, by2 + 35);
+      ctx.restore();
     }
 
     // Controls hint

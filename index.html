@@ -73,6 +73,134 @@
       text-align: center;
       pointer-events: none;
     }
+
+    /* ── Online popup ── */
+    #online-popup {
+      display: none;
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 200;
+      background: linear-gradient(160deg, #0d1228 0%, #080d1a 100%);
+      border: 2px solid #FF8C00;
+      border-radius: 20px;
+      padding: 44px 48px 36px;
+      min-width: 420px;
+      text-align: center;
+      color: #fff;
+      font-family: 'Arial Black', Impact, Arial, sans-serif;
+      box-shadow: 0 0 60px rgba(255,140,0,0.25), 0 24px 48px rgba(0,0,0,0.6);
+    }
+    #online-popup h2 {
+      font-size: 22px;
+      letter-spacing: 4px;
+      color: #FF8C00;
+      margin-bottom: 28px;
+      text-shadow: 0 0 18px rgba(255,140,0,0.6);
+    }
+    .op-section { margin-bottom: 22px; }
+    .op-label {
+      font-size: 10px;
+      letter-spacing: 3px;
+      color: #556;
+      margin-bottom: 10px;
+    }
+    #my-code {
+      font-size: 52px;
+      letter-spacing: 10px;
+      color: #FFE000;
+      text-shadow: 0 0 24px rgba(255,224,0,0.5);
+      font-weight: 900;
+      padding: 8px 0 4px;
+    }
+    .op-hint {
+      font-size: 11px;
+      color: #556;
+      letter-spacing: 1px;
+      font-family: Arial, sans-serif;
+      font-weight: normal;
+      margin-top: 6px;
+    }
+    .op-divider {
+      font-size: 11px;
+      color: #334;
+      letter-spacing: 3px;
+      margin: 18px 0;
+      position: relative;
+    }
+    .op-divider::before, .op-divider::after {
+      content: '';
+      position: absolute;
+      top: 50%; width: 28%;
+      height: 1px;
+      background: #223;
+    }
+    .op-divider::before { left: 0; }
+    .op-divider::after  { right: 0; }
+    #code-input {
+      width: 100%;
+      background: rgba(255,255,255,0.05);
+      border: 2px solid #334;
+      border-radius: 10px;
+      color: #FFE000;
+      font-family: 'Arial Black', Arial, sans-serif;
+      font-size: 30px;
+      font-weight: 900;
+      letter-spacing: 8px;
+      text-align: center;
+      padding: 12px 0;
+      outline: none;
+      text-transform: uppercase;
+      transition: border-color .2s, box-shadow .2s;
+      caret-color: #FF8C00;
+    }
+    #code-input:focus {
+      border-color: #FF8C00;
+      box-shadow: 0 0 18px rgba(255,140,0,0.3);
+    }
+    #code-input::placeholder { color: #334; letter-spacing: 6px; }
+    #join-btn {
+      margin-top: 14px;
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #FF8C00, #FF4500);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-family: 'Arial Black', Arial, sans-serif;
+      font-size: 15px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+      box-shadow: 0 4px 20px rgba(255,100,0,0.4);
+    }
+    #join-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+    #join-btn:active { transform: translateY(0); }
+    #join-btn:disabled { opacity: 0.3; cursor: default; transform: none; }
+    #online-status {
+      min-height: 22px;
+      margin-top: 14px;
+      font-size: 13px;
+      font-family: Arial, sans-serif;
+      font-weight: normal;
+      letter-spacing: 1px;
+      color: #22CC44;
+    }
+    #online-status.err { color: #FF4444; }
+    #cancel-btn {
+      margin-top: 18px;
+      background: none;
+      border: 1px solid #334;
+      border-radius: 8px;
+      color: #556;
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      padding: 8px 24px;
+      cursor: pointer;
+      transition: border-color .15s, color .15s;
+    }
+    #cancel-btn:hover { border-color: #556; color: #aaa; }
   </style>
 </head>
 <body>
@@ -85,9 +213,31 @@
       <div class="bar-outer"><div class="bar-fill"></div></div>
     </div>
     <div id="controls-hint">
-      P1: WASD + G(Light) H(Heavy) J(Sig) K(Shield) &nbsp;|&nbsp;
-      P2: Arrows + Num4(Light) Num5(Heavy) Num6(Sig) Num0(Shield) &nbsp;|&nbsp;
-      ` = Debug &nbsp; ~ = Hitboxes
+      P1: WASD + G(Light) H(Heavy) J(Sig) K(Dodge) &nbsp;|&nbsp;
+      P2: Arrows + Num4 Num5 Num6 Num0 &nbsp;|&nbsp;
+      ` = Debug
+    </div>
+
+    <!-- Online multiplayer popup -->
+    <div id="online-popup">
+      <h2>🌐 &nbsp;ONLINE 2-PLAYER</h2>
+
+      <div class="op-section">
+        <div class="op-label">YOUR GAME CODE</div>
+        <div id="my-code">······</div>
+        <div class="op-hint">Share this code with your friend so they can join</div>
+      </div>
+
+      <div class="op-divider">— OR JOIN A GAME —</div>
+
+      <div class="op-section">
+        <div class="op-label">ENTER FRIEND'S CODE</div>
+        <input id="code-input" type="text" maxlength="6" placeholder="······" autocomplete="off" spellcheck="false" />
+        <button id="join-btn" disabled>JOIN GAME →</button>
+      </div>
+
+      <div id="online-status"></div>
+      <button id="cancel-btn">✕ &nbsp;CANCEL</button>
     </div>
   </div>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
