@@ -334,6 +334,8 @@ class Game {
          this.input.justPressed('p1', 'up') || this.input.justPressed('p2', 'light'))) {
       this.flashFrame = VS_CONFIG.flashFrames;
       this.gameState = GAME_STATE.CHAR_SELECT;
+      this.charSelectPhase = 'p1';
+      this.selectedChar = { p1: 0, p2: 1 };
       this.frame = 0;
     }
   }
@@ -480,34 +482,11 @@ class Game {
     const startX = (C.W - COLS * cellW) / 2 + 10;
     const startY = 360;
 
-    for (const p of ['p1', 'p2']) {
-      const cd = this.cursorMove[p];
-      if (cd.cd > 0) { cd.cd--; continue; }
+    // phase: 'p1' → P1 is picking, 'p2' → P2 is picking, 'done' → both locked
+    const phase = this.charSelectPhase;
+    const activeP = phase === 'p1' ? 'p1' : phase === 'p2' ? 'p2' : null;
 
-      const dx = this.input.getX(p);
-      const dy = this.input.getY(p);
-      let moved = false;
-
-      if (dx > 0.4) {
-        this.selectedChar[p] = (this.selectedChar[p] + 1) % CHARACTERS.length;
-        moved = true;
-      } else if (dx < -0.4) {
-        this.selectedChar[p] = (this.selectedChar[p] - 1 + CHARACTERS.length) % CHARACTERS.length;
-        moved = true;
-      } else if (dy > 0.4) {
-        this.selectedChar[p] = (this.selectedChar[p] + COLS) % CHARACTERS.length;
-        moved = true;
-      } else if (dy < -0.4) {
-        this.selectedChar[p] = (this.selectedChar[p] - COLS + CHARACTERS.length) % CHARACTERS.length;
-        moved = true;
-      }
-
-      if (moved) cd.cd = 12;
-    }
-
-    // Mouse hover and click on character grid
-    // Active player for mouse: p1 if charSelectPhase is p1, otherwise p2
-    const activeP = this.charSelectPhase === 'p2' ? 'p2' : 'p1';
+    // Mouse hover — preview for whoever is currently picking
     let hoveredCell = -1;
     for (let i = 0; i < CHARACTERS.length; i++) {
       const col = i % COLS;
@@ -519,30 +498,29 @@ class Game {
       if (this.mouse.x >= cellLeft && this.mouse.x <= cellRight &&
           this.mouse.y >= cellTop  && this.mouse.y <= cellBot) {
         hoveredCell = i;
-        this.selectedChar[activeP] = i;
+        if (activeP) this.selectedChar[activeP] = i;
         break;
       }
     }
     this.mouse._charHoveredCell = hoveredCell;
+    this.uiCanvas.style.cursor = (hoveredCell >= 0 && phase !== 'done') ? 'pointer' : 'default';
 
-    // Set pointer cursor when over a cell
-    const overCell = hoveredCell >= 0;
-    this.uiCanvas.style.cursor = overCell ? 'pointer' : 'default';
-
-    // Mouse click locks in the highlighted character (visual selection, no advance yet)
+    // Click → lock in and advance phase
     if (this.mouse.clicked && hoveredCell >= 0) {
-      this.selectedChar[activeP] = hoveredCell;
-      this.mouse._charClickedCell = hoveredCell;
+      if (phase === 'p1') {
+        this.selectedChar.p1 = hoveredCell;
+        this.charSelectPhase = 'p2';
+        // Default P2 to an adjacent character so hover shows a distinct preview
+        this.selectedChar.p2 = (hoveredCell + 1) % CHARACTERS.length;
+      } else if (phase === 'p2') {
+        this.selectedChar.p2 = hoveredCell;
+        this.charSelectPhase = 'done';
+      }
     }
 
-    // Enter key or gamepad confirm advances to stage select
-    if (this._menuEnterThisFrame || this.input.justPressed('p1', 'light') || this.input.justPressed('p1', 'heavy')) {
+    // Enter confirms once both players have picked
+    if (phase === 'done' && this._menuEnterThisFrame) {
       this.gameState = GAME_STATE.STAGE_SELECT;
-    }
-
-    // Back to title
-    if (this.input.justPressed('p1', 'shield')) {
-      this.gameState = GAME_STATE.TITLE;
     }
   }
 
@@ -572,33 +550,47 @@ class Game {
     }
     ctx.restore();
 
+    const phase = this.charSelectPhase; // 'p1' | 'p2' | 'done'
+    const p1Locked = phase === 'p2' || phase === 'done';
+    const p2Locked = phase === 'done';
+
     // ── Header ──
     ctx.save();
     ctx.font = '900 14px "Arial Black"';
     ctx.textAlign = 'center';
     ctx.fillStyle = '#556';
     ctx.letterSpacing = '6px';
-    ctx.fillText('SELECT YOUR FIGHTER', C.W / 2, 30);
+    const headerLabel = phase === 'p1' ? 'PLAYER 1 — PICK YOUR FIGHTER'
+                      : phase === 'p2' ? 'PLAYER 2 — PICK YOUR FIGHTER'
+                      : 'READY TO FIGHT!';
+    const headerColor = phase === 'p1' ? '#4488FF' : phase === 'p2' ? '#FF4444' : '#FFE000';
+    ctx.fillStyle = headerColor;
+    ctx.shadowColor = headerColor;
+    ctx.shadowBlur = 14;
+    ctx.fillText(headerLabel, C.W / 2, 30);
+    ctx.shadowBlur = 0;
     ctx.letterSpacing = '0px';
-
-    // Decorative lines flanking header
-    for (const [sx, ex] of [[80, C.W/2 - 160], [C.W/2 + 160, C.W - 80]]) {
+    for (const [sx, ex] of [[80, C.W/2 - 200], [C.W/2 + 200, C.W - 80]]) {
       ctx.beginPath(); ctx.moveTo(sx, 25); ctx.lineTo(ex, 25);
       ctx.strokeStyle = 'rgba(100,100,160,0.4)'; ctx.lineWidth = 1; ctx.stroke();
     }
     ctx.restore();
 
-    // ── Player Preview Panels (top half) ──
+    // ── Player Preview Panels ──
     const p1Char = CHARACTERS[this.selectedChar.p1];
     const p2Char = CHARACTERS[this.selectedChar.p2];
 
     for (const [p, char, panelX] of [['p1', p1Char, 60], ['p2', p2Char, C.W - 380]]) {
+      const isLocked = p === 'p1' ? p1Locked : p2Locked;
+      const isActive = (p === 'p1' && phase === 'p1') || (p === 'p2' && phase === 'p2');
       const pColor = p === 'p1' ? '#4488FF' : '#FF4444';
       const aura = char.palette.aura;
+      const panelAlpha = isActive ? 1.0 : isLocked ? 0.9 : 0.35;
+
+      ctx.save();
+      ctx.globalAlpha = panelAlpha;
 
       // Panel bg
-      ctx.save();
-      ctx.globalAlpha = 0.7;
       const pGrad = ctx.createLinearGradient(panelX, 50, panelX + 320, 340);
       pGrad.addColorStop(0, p === 'p1' ? '#0A0A25' : '#1A0808');
       pGrad.addColorStop(1, 'rgba(0,0,0,0)');
@@ -606,7 +598,24 @@ class Game {
       if (ctx.roundRect) ctx.roundRect(panelX, 50, 320, 290, 12);
       else ctx.rect(panelX, 50, 320, 290);
       ctx.fill();
+
+      // Active panel: animated border glow
+      if (isActive) {
+        const pulse = 0.6 + Math.sin(this.frame * 0.12) * 0.4;
+        ctx.shadowColor = pColor;
+        ctx.shadowBlur = 24 * pulse;
+        ctx.strokeStyle = pColor;
+        ctx.lineWidth = 2.5;
+        if (ctx.roundRect) ctx.roundRect(panelX, 50, 320, 290, 12);
+        else ctx.rect(panelX, 50, 320, 290);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+
       ctx.restore();
+
+      ctx.save();
+      ctx.globalAlpha = panelAlpha;
 
       // Player label
       ctx.font = '900 13px "Arial Black"';
@@ -616,25 +625,48 @@ class Game {
       ctx.fillText(p === 'p1' ? 'PLAYER 1' : 'PLAYER 2', panelX + 16, 80);
       ctx.letterSpacing = '0px';
 
-      // Accent bar
+      // Accent bar (thicker + glow when active)
       ctx.fillStyle = pColor;
+      if (isActive) { ctx.shadowColor = pColor; ctx.shadowBlur = 12; }
       ctx.fillRect(panelX, 50, 4, 290);
+      ctx.shadowBlur = 0;
 
-      // Character portrait (large)
-      const bob = Math.sin(this.frame * 0.06) * 4;
-      ctx.save();
-      // Aura circle behind portrait
-      ctx.globalAlpha = 0.35 + Math.sin(this.frame * 0.08) * 0.1;
+      // "NOW PICKING" / "LOCKED IN" badge
+      if (isActive) {
+        const blink = Math.floor(this.frame / 16) % 2 === 0;
+        if (blink) {
+          ctx.fillStyle = pColor;
+          ctx.globalAlpha = panelAlpha * 0.9;
+          const badgeW = 110, badgeH = 18;
+          ctx.fillRect(panelX + 204, 64, badgeW, badgeH);
+          ctx.globalAlpha = panelAlpha;
+          ctx.font = 'bold 11px "Arial Black"';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = '#000';
+          ctx.fillText('NOW PICKING', panelX + 204 + badgeW / 2, 76);
+        }
+      } else if (isLocked) {
+        ctx.fillStyle = '#22CC44';
+        ctx.globalAlpha = panelAlpha * 0.9;
+        const badgeW = 92, badgeH = 18;
+        ctx.fillRect(panelX + 222, 64, badgeW, badgeH);
+        ctx.globalAlpha = panelAlpha;
+        ctx.font = 'bold 11px "Arial Black"';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#000';
+        ctx.fillText('LOCKED IN', panelX + 222 + badgeW / 2, 76);
+      }
+
+      // Portrait + aura
+      const bob = Math.sin(this.frame * 0.06) * (isActive ? 4 : 1);
       const aGrad = ctx.createRadialGradient(panelX + 160, 195 + bob, 10, panelX + 160, 195 + bob, 90);
-      aGrad.addColorStop(0, aura + 'AA');
+      aGrad.addColorStop(0, aura + (isActive ? 'BB' : '55'));
       aGrad.addColorStop(1, aura + '00');
       ctx.fillStyle = aGrad;
       ctx.beginPath();
       ctx.arc(panelX + 160, 195 + bob, 90, 0, Math.PI * 2);
       ctx.fill();
-      ctx.restore();
 
-      // Large portrait
       drawPortrait(ctx, char, panelX + 100, 195 + bob, 75);
 
       // Character name
@@ -643,7 +675,7 @@ class Game {
       ctx.strokeStyle = '#000';
       ctx.lineWidth = 4;
       ctx.strokeText(char.name.toUpperCase(), panelX + 160, 305);
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = isActive ? '#fff' : isLocked ? '#ddd' : '#888';
       ctx.fillText(char.name.toUpperCase(), panelX + 160, 305);
 
       // Stats tags
@@ -654,19 +686,20 @@ class Game {
       if ((char.proportions?.weight || 100) >= 105) tags.push('HEAVY');
       if ((stats.air || 1) >= 1.1) tags.push('AERIAL');
       if (tags.length === 0) tags.push('BALANCED');
-
       ctx.font = 'bold 10px Arial';
       ctx.textAlign = 'center';
       let tagX = panelX + 80;
       for (const tag of tags.slice(0, 3)) {
         ctx.fillStyle = pColor;
-        ctx.globalAlpha = 0.25;
+        ctx.globalAlpha = panelAlpha * 0.25;
         ctx.fillRect(tagX - 4, 316, ctx.measureText(tag).width + 12, 15);
-        ctx.globalAlpha = 1;
+        ctx.globalAlpha = panelAlpha;
         ctx.fillStyle = pColor;
         ctx.fillText(tag, tagX + ctx.measureText(tag).width / 2 + 2, 327);
         tagX += ctx.measureText(tag).width + 22;
       }
+
+      ctx.restore();
     }
 
     // ── Character Grid ──
@@ -676,81 +709,106 @@ class Game {
       const row = Math.floor(i / COLS);
       const cx = startX + col * cellW + cellW / 2;
       const cy = startY + row * cellH + cellH / 2;
-      const isP1 = this.selectedChar.p1 === i;
-      const isP2 = this.selectedChar.p2 === i;
-      const isHovered = isP1 || isP2;
+
+      // Which players have this cell selected, and which are locked
+      const isP1sel = this.selectedChar.p1 === i;
+      const isP2sel = this.selectedChar.p2 === i;
+      const isP1Locked = isP1sel && p1Locked;
+      const isP2Locked = isP2sel && p2Locked;
+      const isActiveHover = this.mouse._charHoveredCell === i;
+
+      // Decide highlight color: locked takes priority, then active hover
+      let borderColor = null;
+      if (isP1Locked && isP2Locked) borderColor = 'both';
+      else if (isP1Locked) borderColor = '#4488FF';
+      else if (isP2Locked) borderColor = '#FF4444';
+      else if (isActiveHover && phase !== 'done') {
+        borderColor = phase === 'p1' ? '#4488FFAA' : '#FF4444AA';
+      }
+
+      const isHighlighted = borderColor !== null;
 
       // Cell background
       ctx.save();
-      ctx.globalAlpha = isHovered ? 0.9 : 0.5;
+      ctx.globalAlpha = isHighlighted ? 0.9 : 0.5;
       const cellGrad = ctx.createLinearGradient(cx - cellW/2, cy - cellH/2, cx + cellW/2, cy + cellH/2);
-      if (isP1 && isP2) { cellGrad.addColorStop(0, '#1A1A2A'); cellGrad.addColorStop(1, '#2A1A1A'); }
-      else if (isP1)    { cellGrad.addColorStop(0, '#0A0A28'); cellGrad.addColorStop(1, '#131330'); }
-      else if (isP2)    { cellGrad.addColorStop(0, '#280A0A'); cellGrad.addColorStop(1, '#301313'); }
-      else              { cellGrad.addColorStop(0, '#0F0F18'); cellGrad.addColorStop(1, '#0F0F18'); }
+      if (isP1Locked && isP2Locked) { cellGrad.addColorStop(0, '#1A1A2A'); cellGrad.addColorStop(1, '#2A1A1A'); }
+      else if (isP1Locked) { cellGrad.addColorStop(0, '#0A0A28'); cellGrad.addColorStop(1, '#131330'); }
+      else if (isP2Locked) { cellGrad.addColorStop(0, '#280A0A'); cellGrad.addColorStop(1, '#301313'); }
+      else if (isActiveHover && phase !== 'done') {
+        const c = phase === 'p1' ? '#0A0A22' : '#220A0A';
+        cellGrad.addColorStop(0, c); cellGrad.addColorStop(1, c);
+      } else { cellGrad.addColorStop(0, '#0F0F18'); cellGrad.addColorStop(1, '#0F0F18'); }
       ctx.fillStyle = cellGrad;
       if (ctx.roundRect) ctx.roundRect(startX + col * cellW + 2, startY + row * cellH + 2, cellW - 4, cellH - 4, 8);
       else ctx.rect(startX + col * cellW + 2, startY + row * cellH + 2, cellW - 4, cellH - 4);
       ctx.fill();
 
-      // Mouse hover glow ring
-      const isMouseHovered = this.mouse._charHoveredCell === i;
-
-      // Selection border
-      if (isP1 || isP2) {
-        ctx.shadowColor = isP1 ? '#4488FF' : '#FF4444';
-        ctx.shadowBlur = 16;
-        ctx.strokeStyle = isP1 ? '#4488FF' : '#FF4444';
+      // Border
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(startX + col * cellW + 2, startY + row * cellH + 2, cellW - 4, cellH - 4, 8);
+      else ctx.rect(startX + col * cellW + 2, startY + row * cellH + 2, cellW - 4, cellH - 4);
+      if (borderColor === 'both') {
+        ctx.strokeStyle = '#AA66FF';
+        ctx.shadowColor = '#AA66FF';
+        ctx.shadowBlur = 18;
         ctx.lineWidth = 2.5;
-        if (ctx.roundRect) ctx.roundRect(startX + col * cellW + 2, startY + row * cellH + 2, cellW - 4, cellH - 4, 8);
-        else ctx.rect(startX + col * cellW + 2, startY + row * cellH + 2, cellW - 4, cellH - 4);
-        ctx.stroke();
-      } else if (isMouseHovered) {
-        // Subtle glow ring for mouse hover (non-selected)
-        ctx.shadowColor = 'rgba(255,255,255,0.6)';
-        ctx.shadowBlur = 12;
-        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-        ctx.lineWidth = 1.5;
-        if (ctx.roundRect) ctx.roundRect(startX + col * cellW + 2, startY + row * cellH + 2, cellW - 4, cellH - 4, 8);
-        else ctx.rect(startX + col * cellW + 2, startY + row * cellH + 2, cellW - 4, cellH - 4);
-        ctx.stroke();
+      } else if (borderColor) {
+        ctx.strokeStyle = borderColor;
+        ctx.shadowColor = borderColor;
+        ctx.shadowBlur = 16;
+        ctx.lineWidth = isHighlighted && (isP1Locked || isP2Locked) ? 2.5 : 1.5;
       } else {
         ctx.strokeStyle = 'rgba(255,255,255,0.06)';
         ctx.lineWidth = 1;
-        if (ctx.roundRect) ctx.roundRect(startX + col * cellW + 2, startY + row * cellH + 2, cellW - 4, cellH - 4, 8);
-        else ctx.rect(startX + col * cellW + 2, startY + row * cellH + 2, cellW - 4, cellH - 4);
-        ctx.stroke();
       }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
       ctx.restore();
 
       // Portrait
-      const bobY = cy - 15 + (isHovered ? Math.sin(this.frame * 0.08) * 3 : 0);
-      drawPortrait(ctx, char, cx, bobY, isHovered ? 46 : 40);
+      const bobY = cy - 15 + (isHighlighted ? Math.sin(this.frame * 0.08) * 3 : 0);
+      drawPortrait(ctx, char, cx, bobY, isHighlighted ? 46 : 40);
 
       // Name
-      ctx.font = `${isHovered ? 'bold' : ''} 11px "Arial Black", Arial`;
+      ctx.font = `${isHighlighted ? 'bold' : ''} 11px "Arial Black", Arial`;
       ctx.textAlign = 'center';
-      ctx.fillStyle = isHovered ? '#fff' : '#667';
+      ctx.fillStyle = isHighlighted ? '#fff' : '#667';
       ctx.fillText(char.name.toUpperCase(), cx, cy + 45);
 
-      // P1/P2 badge
-      if (isP1) {
+      // P1/P2 locked badges on cells
+      if (isP1Locked) {
         ctx.fillStyle = '#4488FF';
         ctx.font = 'bold 9px Arial';
-        ctx.fillText('P1', cx - (isP2 ? 10 : 0), cy + 57);
+        ctx.fillText('P1', cx - (isP2Locked ? 10 : 0), cy + 57);
       }
-      if (isP2) {
+      if (isP2Locked) {
         ctx.fillStyle = '#FF4444';
         ctx.font = 'bold 9px Arial';
-        ctx.fillText('P2', cx + (isP1 ? 10 : 0), cy + 57);
+        ctx.fillText('P2', cx + (isP1Locked ? 10 : 0), cy + 57);
       }
     }
 
     // ── Bottom Hint ──
-    ctx.font = 'bold 13px Arial';
+    ctx.save();
+    ctx.font = 'bold 15px "Arial Black"';
     ctx.textAlign = 'center';
-    ctx.fillStyle = Math.floor(this.frame / 25) % 2 ? '#FFDD00' : '#886600';
-    ctx.fillText('Click to Select   •   Enter / G / H — Confirm   •   K — Back', C.W / 2, 710);
+    if (phase === 'done') {
+      // "PRESS ENTER TO FIGHT!" — blinking yellow
+      const blink = Math.floor(this.frame / 18) % 2 === 0;
+      ctx.fillStyle = blink ? '#FFE000' : '#AA8800';
+      ctx.shadowColor = '#FFE000';
+      ctx.shadowBlur = blink ? 18 : 0;
+      ctx.fillText('PRESS ENTER TO FIGHT!', C.W / 2, 710);
+    } else {
+      const pickColor = phase === 'p1' ? '#4488FF' : '#FF4444';
+      const pickLabel = phase === 'p1' ? 'PLAYER 1: Click your fighter'
+                                       : 'PLAYER 2: Click your fighter';
+      ctx.fillStyle = pickColor;
+      ctx.fillText(pickLabel, C.W / 2, 710);
+    }
+    ctx.shadowBlur = 0;
+    ctx.restore();
   }
 
   // ── STAGE SELECT ───────────────────────────────────────────────────────
@@ -768,6 +826,8 @@ class Game {
     }
     if (this.input.justPressed('p1', 'shield')) {
       this.gameState = GAME_STATE.CHAR_SELECT;
+      this.charSelectPhase = 'p1';
+      this.selectedChar = { p1: 0, p2: 1 };
     }
 
     // Mouse hover and click on stage thumbnails
