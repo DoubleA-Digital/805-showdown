@@ -1,5 +1,6 @@
 import { C } from './constants.js';
 import { AudioManager } from './audio.js';
+import { NetManager } from './net.js';
 import { InputManager } from './input.js';
 import { Fighter, STATE } from './fighter.js';
 import { drawCharacter, drawPortrait, drawDebugBoxes } from './renderer.js';
@@ -28,10 +29,11 @@ import { LOADING_CONFIG, VS_CONFIG } from './config/stage_themes.js';
 const GAME_STATE = {
   LOADING: 'loading',
   TITLE: 'title',
+  ONLINE_MENU: 'online_menu',   // create / join screen
   CHAR_SELECT: 'char_select',
   STAGE_SELECT: 'stage_select',
   VS_SCREEN: 'vs_screen',
-  INTRO: 'intro',          // 3-2-1-FIGHT countdown before MATCH
+  INTRO: 'intro',
   MATCH: 'match',
   RESULTS: 'results',
 };
@@ -98,6 +100,17 @@ class Game {
       unlimitedStocks: true,
     };
 
+    // Online multiplayer
+    this.net = null;          // NetManager instance when online
+    this.onlineMode = false;
+    this._netPendingState = null;   // latest state packet from host (guest side)
+    this._netRemoteKeys = {};       // latest input from guest (host side)
+    this._onlineMenuMode = 'pick';  // 'pick' | 'create' | 'join'
+    this._codeInput = '';           // typed code (join mode)
+    this._onlineStatusMsg = '';
+    this._onlineMyCharPicked = false;
+    this._onlineOppCharPicked = false;
+
     // Mouse state
     this.mouse = { x: 0, y: 0, clicked: false };
     this._menuEnterPressed = false;
@@ -140,6 +153,14 @@ class Game {
 
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Enter') this._menuEnterPressed = true;
+      // Code entry for joining online game
+      if (this.gameState === GAME_STATE.ONLINE_MENU && this._onlineMenuMode === 'join') {
+        if (e.key === 'Backspace') {
+          this._codeInput = this._codeInput.slice(0, -1);
+        } else if (/^[A-Za-z0-9]$/.test(e.key) && this._codeInput.length < 6) {
+          this._codeInput += e.key.toUpperCase();
+        }
+      }
     });
 
     // Reset cursor when leaving canvas
@@ -185,6 +206,9 @@ class Game {
         break;
       case GAME_STATE.TITLE:
         this._updateTitle();
+        break;
+      case GAME_STATE.ONLINE_MENU:
+        this._updateOnlineMenu();
         break;
       case GAME_STATE.CHAR_SELECT:
         this._updateCharSelect();
@@ -232,6 +256,9 @@ class Game {
         break;
       case GAME_STATE.TITLE:
         this._renderTitle(ctx, uiCtx);
+        break;
+      case GAME_STATE.ONLINE_MENU:
+        this._renderOnlineMenu(ctx);
         break;
       case GAME_STATE.CHAR_SELECT:
         this._renderCharSelect(ctx, uiCtx);
@@ -328,16 +355,33 @@ class Game {
   _updateTitle() {
     this.titleFrame++;
     if (this.titleFrame > 60) this.titleReady = true;
+    if (!this.titleReady) return;
 
-    if (this.titleReady &&
-        (this.input.justPressed('p1', 'light') || this.input.justPressed('p1', 'heavy') ||
-         this.input.justPressed('p1', 'up') || this.input.justPressed('p2', 'light'))) {
-      this.flashFrame = VS_CONFIG.flashFrames;
-      this.gameState = GAME_STATE.CHAR_SELECT;
-      this.charSelectPhase = 'p1';
-      this.selectedChar = { p1: 0, p2: 1 };
-      this.frame = 0;
+    // Button hit-test: LOCAL 2P and ONLINE 2P
+    const mx = this.mouse.x, my = this.mouse.y;
+    const localBtn  = { x: C.W/2 - 280, y: 460, w: 240, h: 54 };
+    const onlineBtn = { x: C.W/2 +  40, y: 460, w: 240, h: 54 };
+
+    const inBtn = (b) => mx >= b.x && mx <= b.x+b.w && my >= b.y && my <= b.y+b.h;
+
+    if (this.mouse.clicked) {
+      if (inBtn(localBtn)) {
+        this.flashFrame = VS_CONFIG.flashFrames;
+        this.onlineMode = false;
+        this.gameState = GAME_STATE.CHAR_SELECT;
+        this.charSelectPhase = 'p1';
+        this.selectedChar = { p1: 0, p2: 1 };
+        this.frame = 0;
+      } else if (inBtn(onlineBtn)) {
+        this.gameState = GAME_STATE.ONLINE_MENU;
+        this._onlineMenuMode = 'pick';
+        this._codeInput = '';
+        this._onlineStatusMsg = '';
+      }
     }
+
+    // Store hover for render
+    this._titleHover = inBtn(localBtn) ? 'local' : inBtn(onlineBtn) ? 'online' : null;
   }
 
   _renderTitle(ctx) {
@@ -455,15 +499,39 @@ class Game {
       ctx.fillText(char.name.toUpperCase(), px, py + 26);
     }
 
-    // Press to start
-    if (this.titleReady && Math.floor(this.frame / 20) % 2 === 0) {
-      ctx.font = 'bold 22px "Arial Black", Arial';
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#FFE000';
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = 3;
-      ctx.strokeText('PRESS ANY BUTTON TO START', C.W / 2, 460);
-      ctx.fillText('PRESS ANY BUTTON TO START', C.W / 2, 460);
+    // Mode selection buttons
+    if (this.titleReady) {
+      const buttons = [
+        { label: '🎮  LOCAL 2-PLAYER', x: C.W/2 - 280, color: '#4488FF', hover: this._titleHover === 'local' },
+        { label: '🌐  ONLINE 2-PLAYER', x: C.W/2 + 40,  color: '#FF8C00', hover: this._titleHover === 'online' },
+      ];
+      for (const btn of buttons) {
+        const bw = 240, bh = 54, by = 460;
+        ctx.save();
+        // Glow background
+        const grad = ctx.createLinearGradient(btn.x, by, btn.x, by + bh);
+        grad.addColorStop(0, btn.hover ? btn.color + 'CC' : btn.color + '44');
+        grad.addColorStop(1, btn.hover ? btn.color + '88' : btn.color + '22');
+        ctx.fillStyle = grad;
+        if (ctx.roundRect) ctx.roundRect(btn.x, by, bw, bh, 10);
+        else ctx.rect(btn.x, by, bw, bh);
+        ctx.fill();
+        // Border
+        ctx.strokeStyle = btn.color;
+        ctx.lineWidth = btn.hover ? 3 : 1.5;
+        ctx.shadowColor = btn.color;
+        ctx.shadowBlur = btn.hover ? 22 : 8;
+        if (ctx.roundRect) ctx.roundRect(btn.x, by, bw, bh, 10);
+        else ctx.rect(btn.x, by, bw, bh);
+        ctx.stroke();
+        // Label
+        ctx.font = '900 16px "Arial Black", Arial';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#fff';
+        ctx.shadowBlur = 0;
+        ctx.fillText(btn.label, btn.x + bw/2, by + 33);
+        ctx.restore();
+      }
     }
 
     // Controls hint
@@ -472,6 +540,231 @@ class Game {
     ctx.textAlign = 'center';
     ctx.fillText('P1: WASD + GHJ  |  P2: Arrow Keys + Numpad', C.W / 2, 700);
     ctx.fillText('G=Light  H=Heavy  J=Sig (hold dir for variant)  K=Dodge  U=Grab', C.W / 2, 716);
+  }
+
+  // ── ONLINE MENU ────────────────────────────────────────────────────────
+
+  _updateOnlineMenu() {
+    const mx = this.mouse.x, my = this.mouse.y;
+    const inBtn = (x, y, w, h) => mx >= x && mx <= x+w && my >= y && my <= y+h;
+
+    if (this._onlineMenuMode === 'pick') {
+      // CREATE button
+      if (this.mouse.clicked && inBtn(C.W/2 - 240, 310, 200, 56)) {
+        this._onlineMenuMode = 'create';
+        this._onlineStatusMsg = 'Connecting to relay…';
+        this._startCreateGame();
+      }
+      // JOIN button
+      if (this.mouse.clicked && inBtn(C.W/2 + 40, 310, 200, 56)) {
+        this._onlineMenuMode = 'join';
+        this._codeInput = '';
+        this._onlineStatusMsg = '';
+      }
+    }
+
+    if (this._onlineMenuMode === 'join') {
+      // Submit code
+      const codeReady = this._codeInput.length === 6;
+      if ((this.mouse.clicked && inBtn(C.W/2 - 80, 420, 160, 50)) && codeReady) {
+        this._startJoinGame(this._codeInput);
+      }
+      if (this._menuEnterThisFrame && codeReady) {
+        this._startJoinGame(this._codeInput);
+      }
+    }
+
+    // Back to title
+    if (this.mouse.clicked && inBtn(C.W/2 - 60, 620, 120, 38)) {
+      this.net?.destroy();
+      this.net = null;
+      this.onlineMode = false;
+      this.gameState = GAME_STATE.TITLE;
+    }
+  }
+
+  _startCreateGame() {
+    this.net = new NetManager();
+    this.net.onReady = (code) => {
+      this._onlineStatusMsg = '';
+    };
+    this.net.onConnect = () => {
+      this._onlineStatusMsg = 'Opponent connected!';
+      this.onlineMode = true;
+      this._onlineMyCharPicked = false;
+      this._onlineOppCharPicked = false;
+      setTimeout(() => {
+        this.charSelectPhase = 'p1';
+        this.selectedChar = { p1: 0, p2: 1 };
+        this.gameState = GAME_STATE.CHAR_SELECT;
+      }, 800);
+    };
+    this.net.onDisconnect = () => {
+      this._onlineStatusMsg = 'Opponent disconnected.';
+    };
+    this.net.onError = (msg) => {
+      this._onlineStatusMsg = 'Error: ' + msg;
+    };
+    this.net.onData = (d) => this._handleNetData(d);
+    this.net.createGame();
+  }
+
+  _startJoinGame(code) {
+    this._onlineStatusMsg = 'Connecting…';
+    this.net = new NetManager();
+    this.net.onConnect = () => {
+      this._onlineStatusMsg = 'Connected!';
+      this.onlineMode = true;
+      this._onlineMyCharPicked = false;
+      this._onlineOppCharPicked = false;
+      setTimeout(() => {
+        this.charSelectPhase = 'p2';
+        this.selectedChar = { p1: 0, p2: 1 };
+        this.gameState = GAME_STATE.CHAR_SELECT;
+      }, 800);
+    };
+    this.net.onDisconnect = () => {
+      this._onlineStatusMsg = 'Disconnected.';
+    };
+    this.net.onError = (msg) => {
+      this._onlineStatusMsg = 'Error: ' + msg + ' — check the code and try again.';
+      this._onlineMenuMode = 'join';
+    };
+    this.net.onData = (d) => this._handleNetData(d);
+    this.net.joinGame(code);
+  }
+
+  _renderOnlineMenu(ctx) {
+    // Background
+    const bg = ctx.createLinearGradient(0, 0, 0, C.H);
+    bg.addColorStop(0, '#07071A'); bg.addColorStop(1, '#0D0A14');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, C.W, C.H);
+
+    ctx.save();
+    ctx.textAlign = 'center';
+
+    // Title
+    ctx.font = '900 48px "Arial Black", Arial';
+    ctx.fillStyle = '#FF8C00';
+    ctx.shadowColor = '#FF8C00'; ctx.shadowBlur = 24;
+    ctx.fillText('ONLINE 2-PLAYER', C.W/2, 120);
+    ctx.shadowBlur = 0;
+
+    ctx.font = 'bold 16px Arial';
+    ctx.fillStyle = '#667';
+    ctx.fillText('Play against a friend on a different device', C.W/2, 160);
+
+    if (this._onlineMenuMode === 'pick') {
+      const btns = [
+        { x: C.W/2 - 240, label: '🛠  CREATE GAME', color: '#4488FF' },
+        { x: C.W/2 + 40,  label: '🔗  JOIN GAME',   color: '#FF8C00' },
+      ];
+      for (const b of btns) {
+        const bw = 200, bh = 56, by = 310;
+        const hover = this.mouse.x >= b.x && this.mouse.x <= b.x+bw && this.mouse.y >= by && this.mouse.y <= by+bh;
+        const grad = ctx.createLinearGradient(b.x, by, b.x, by+bh);
+        grad.addColorStop(0, hover ? b.color+'CC' : b.color+'44');
+        grad.addColorStop(1, hover ? b.color+'88' : b.color+'22');
+        ctx.fillStyle = grad;
+        if (ctx.roundRect) ctx.roundRect(b.x, by, bw, bh, 10); else ctx.rect(b.x, by, bw, bh);
+        ctx.fill();
+        ctx.strokeStyle = b.color; ctx.lineWidth = hover ? 3 : 1.5;
+        ctx.shadowColor = b.color; ctx.shadowBlur = hover ? 18 : 6;
+        if (ctx.roundRect) ctx.roundRect(b.x, by, bw, bh, 10); else ctx.rect(b.x, by, bw, bh);
+        ctx.stroke(); ctx.shadowBlur = 0;
+        ctx.font = '900 15px "Arial Black"'; ctx.fillStyle = '#fff';
+        ctx.fillText(b.label, b.x + bw/2, by + 34);
+      }
+    } else if (this._onlineMenuMode === 'create') {
+      // Show game code
+      ctx.font = '900 22px "Arial Black"'; ctx.fillStyle = '#aaa';
+      ctx.fillText('YOUR GAME CODE', C.W/2, 280);
+
+      const code = this.net?.code || '------';
+      ctx.font = '900 72px "Arial Black", Arial';
+      ctx.shadowColor = '#FF8C00'; ctx.shadowBlur = 28;
+      ctx.fillStyle = '#FFE000';
+      ctx.fillText(code, C.W/2, 370);
+      ctx.shadowBlur = 0;
+
+      ctx.font = 'bold 16px Arial'; ctx.fillStyle = '#667';
+      ctx.fillText('Share this code with your friend — they enter it to join', C.W/2, 415);
+
+      // Waiting animation
+      const dots = '.'.repeat((Math.floor(this.frame / 20) % 4));
+      ctx.font = 'bold 20px "Arial Black"';
+      ctx.fillStyle = this.net?.status === 'connected' ? '#22CC44' : '#aaa';
+      ctx.fillText(
+        this.net?.status === 'connected' ? '✓ Connected!' : 'Waiting for opponent' + dots,
+        C.W/2, 470
+      );
+    } else if (this._onlineMenuMode === 'join') {
+      ctx.font = '900 22px "Arial Black"'; ctx.fillStyle = '#aaa';
+      ctx.fillText('ENTER GAME CODE', C.W/2, 260);
+
+      // Code input display
+      const dispCode = (this._codeInput + '      ').slice(0, 6).split('');
+      const slotW = 60, slotH = 70, slotGap = 8;
+      const totalW = slotW * 6 + slotGap * 5;
+      const startX = C.W/2 - totalW/2;
+      for (let i = 0; i < 6; i++) {
+        const sx = startX + i * (slotW + slotGap);
+        const sy = 290;
+        const filled = i < this._codeInput.length;
+        ctx.fillStyle = filled ? 'rgba(255,140,0,0.15)' : 'rgba(255,255,255,0.04)';
+        if (ctx.roundRect) ctx.roundRect(sx, sy, slotW, slotH, 8); else ctx.rect(sx, sy, slotW, slotH);
+        ctx.fill();
+        ctx.strokeStyle = filled ? '#FF8C00' : 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = filled ? 2 : 1;
+        ctx.shadowColor = filled ? '#FF8C00' : 'none'; ctx.shadowBlur = filled ? 10 : 0;
+        if (ctx.roundRect) ctx.roundRect(sx, sy, slotW, slotH, 8); else ctx.rect(sx, sy, slotW, slotH);
+        ctx.stroke(); ctx.shadowBlur = 0;
+        if (filled) {
+          ctx.font = '900 34px "Arial Black"'; ctx.fillStyle = '#FFE000';
+          ctx.fillText(dispCode[i], sx + slotW/2, sy + 47);
+        }
+      }
+
+      ctx.font = 'bold 13px Arial'; ctx.fillStyle = '#556';
+      ctx.fillText('Type the 6-character code from your friend\'s screen', C.W/2, 385);
+
+      // Submit button
+      const codeReady = this._codeInput.length === 6;
+      const bx = C.W/2 - 80, by = 420, bw = 160, bh = 50;
+      const btnHover = this.mouse.x >= bx && this.mouse.x <= bx+bw && this.mouse.y >= by && this.mouse.y <= by+bh;
+      ctx.globalAlpha = codeReady ? 1 : 0.3;
+      ctx.fillStyle = btnHover && codeReady ? '#FF8C00' : 'rgba(255,140,0,0.3)';
+      if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 10); else ctx.rect(bx, by, bw, bh);
+      ctx.fill();
+      ctx.strokeStyle = '#FF8C00'; ctx.lineWidth = 2;
+      if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 10); else ctx.rect(bx, by, bw, bh);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.font = '900 15px "Arial Black"'; ctx.fillStyle = codeReady ? '#fff' : '#888';
+      ctx.fillText('JOIN →', C.W/2, by + 31);
+    }
+
+    // Status message
+    if (this._onlineStatusMsg) {
+      const isErr = this._onlineStatusMsg.startsWith('Error');
+      ctx.font = 'bold 14px Arial';
+      ctx.fillStyle = isErr ? '#FF4444' : '#22CC44';
+      ctx.fillText(this._onlineStatusMsg, C.W/2, 560);
+    }
+
+    // Back button
+    const bx2 = C.W/2 - 60, by2 = 620, bw2 = 120, bh2 = 38;
+    const backHover = this.mouse.x >= bx2 && this.mouse.x <= bx2+bw2 && this.mouse.y >= by2 && this.mouse.y <= by2+bh2;
+    ctx.fillStyle = backHover ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)';
+    if (ctx.roundRect) ctx.roundRect(bx2, by2, bw2, bh2, 8); else ctx.rect(bx2, by2, bw2, bh2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1;
+    if (ctx.roundRect) ctx.roundRect(bx2, by2, bw2, bh2, 8); else ctx.rect(bx2, by2, bw2, bh2);
+    ctx.stroke();
+    ctx.font = 'bold 14px Arial'; ctx.fillStyle = '#888';
+    ctx.fillText('← Back', C.W/2, by2 + 24);
+
+    ctx.restore();
   }
 
   // ── CHARACTER SELECT ───────────────────────────────────────────────────
@@ -507,21 +800,41 @@ class Game {
 
     // Click → lock in and advance phase
     if (this.mouse.clicked && hoveredCell >= 0) {
-      if (phase === 'p1') {
-        this.selectedChar.p1 = hoveredCell;
-        this.charSelectPhase = 'p2';
-        // Default P2 to an adjacent character so hover shows a distinct preview
-        this.selectedChar.p2 = (hoveredCell + 1) % CHARACTERS.length;
-      } else if (phase === 'p2') {
-        this.selectedChar.p2 = hoveredCell;
-        this.charSelectPhase = 'done';
+      if (this.onlineMode) {
+        const myP = this.net?.isHost ? 'p1' : 'p2';
+        if (!this._onlineMyCharPicked) {
+          this.selectedChar[myP] = hoveredCell;
+          this._onlineMyCharPicked = true;
+          this.charSelectPhase = 'done';
+          this.net?.send({ type: 'charPick', charIdx: hoveredCell });
+          if (this._onlineOppCharPicked && this.net?.isHost) this._onlineStartMatch();
+        }
+      } else {
+        if (phase === 'p1') {
+          this.selectedChar.p1 = hoveredCell;
+          this.charSelectPhase = 'p2';
+          this.selectedChar.p2 = (hoveredCell + 1) % CHARACTERS.length;
+        } else if (phase === 'p2') {
+          this.selectedChar.p2 = hoveredCell;
+          this.charSelectPhase = 'done';
+        }
       }
     }
 
-    // Enter confirms once both players have picked
-    if (phase === 'done' && this._menuEnterThisFrame) {
+    // Enter confirms once both players have picked (local only)
+    if (!this.onlineMode && phase === 'done' && this._menuEnterThisFrame) {
       this.gameState = GAME_STATE.STAGE_SELECT;
     }
+  }
+
+  _onlineStartMatch() {
+    this.net?.send({
+      type: 'startMatch',
+      p1CharIdx: this.selectedChar.p1,
+      p2CharIdx: this.selectedChar.p2,
+      stageIdx: this.selectedStage,
+    });
+    this._startMatch();
   }
 
   _renderCharSelect(ctx) {
@@ -1037,6 +1350,26 @@ class Game {
   // ── MATCH UPDATE ────────────────────────────────────────────────────────
 
   _updateMatch() {
+    // ── GUEST side: just render received state, send inputs ──
+    if (this.onlineMode && this.net && !this.net.isHost) {
+      this.input.update();
+      // Send local P1-bound keys as P2 input to host
+      const s = this.input.state.p1;
+      this.net.send({ type: 'input', keys: {
+        left: s.left, right: s.right, up: s.up, down: s.down,
+        light: s.light, heavy: s.heavy, sig: s.sig, shield: s.shield, grab: s.grab,
+        dx: s.dx, dy: s.dy,
+      }});
+      // Apply host state if received
+      if (this._netPendingState) {
+        this._applyNetState(this._netPendingState);
+        this._netPendingState = null;
+      }
+      this.effects.update();
+      this.hud.update(this.stocks);
+      return;
+    }
+
     if (this.matchEnded) {
       this.resultFrame++;
       if (this.resultFrame > 180) {
@@ -1061,8 +1394,10 @@ class Game {
     for (const f of fighters) {
       if (f.state !== STATE.DEATH && f.state !== STATE.RESPAWN) {
         if (this.trainingMode && f.playerKey === 'p2' && this.cpu) {
-          // CPU controls P2
           this._applyCPUToFighter(f, this.fighters.p1);
+        } else if (this.onlineMode && this.net?.isHost && f.playerKey === 'p2') {
+          // P2 driven by remote keys received from guest
+          f.handleInput(this._makeNetInput(this._netRemoteKeys));
         } else {
           f.handleInput(this.input);
         }
@@ -1169,6 +1504,99 @@ class Game {
       if (stk === 1 && this.frame % (C.FPS * 10) === 0) {
         this.effects.announce('LAST STOCK!', '#FF3030', `${this.fighters[key].name}`);
       }
+    }
+
+    // Online HOST: broadcast state to guest every 2 frames
+    if (this.onlineMode && this.net?.isHost && this.net.connected && this.frame % 2 === 0) {
+      this.net.send(this._buildNetStatePacket());
+    }
+  }
+
+  // ── Network helpers ──────────────────────────────────────────────────────
+
+  _buildNetStatePacket() {
+    const serF = (f) => ({
+      x: f.x, y: f.y, vx: f.vx, vy: f.vy,
+      state: f.state, stateFrame: f.stateFrame,
+      damage: f.damage, grounded: f.grounded,
+      facingRight: f.facingRight, invincible: f.invincible,
+      activeHitboxes: f.activeHitboxes || [],
+    });
+    return {
+      type: 'gameState',
+      p1: serF(this.fighters.p1),
+      p2: serF(this.fighters.p2),
+      stocks: { ...this.stocks },
+      matchTimer: this.matchTimer,
+      matchEnded: this.matchEnded,
+      winner: this.winner?.playerKey || null,
+    };
+  }
+
+  _applyNetState(d) {
+    if (!this.fighters) return;
+    for (const p of ['p1', 'p2']) {
+      const f = this.fighters[p], s = d[p];
+      if (!f || !s) continue;
+      f.x = s.x; f.y = s.y; f.vx = s.vx; f.vy = s.vy;
+      f.state = s.state; f.stateFrame = s.stateFrame;
+      f.damage = s.damage; f.grounded = s.grounded;
+      f.facingRight = s.facingRight; f.invincible = s.invincible;
+      f.activeHitboxes = s.activeHitboxes || [];
+    }
+    if (d.stocks) this.stocks = d.stocks;
+    if (d.matchTimer !== undefined) this.matchTimer = d.matchTimer;
+    if (d.matchEnded && !this.matchEnded) {
+      this.matchEnded = true;
+      if (d.winner) this.winner = this.fighters[d.winner];
+    }
+  }
+
+  _makeNetInput(keys) {
+    // Returns an object that quacks like InputManager for a single fighter
+    const k = keys || {};
+    return {
+      update() {},
+      getX: (p) => p === 'p2' ? (k.dx || 0) : 0,
+      getY: (p) => p === 'p2' ? (k.dy || 0) : 0,
+      isHeld: (p, a) => p === 'p2' ? !!k[a] : false,
+      justPressed: (p, a) => p === 'p2' ? !!k[a] : false,
+      consumeBuffer: (p, a) => p === 'p2' ? !!k[a] : false,
+      hasBuffer: (p, a) => p === 'p2' ? !!k[a] : false,
+      isDashInput: () => false,
+      isSmashDir: (p, d) => p === 'p2' ? !!k[d] : false,
+    };
+  }
+
+  _handleNetData(data) {
+    if (!data || !data.type) return;
+    switch (data.type) {
+      case 'charPick':
+        // Opponent picked their character
+        if (this.net?.isHost) {
+          this.selectedChar.p2 = data.charIdx;
+        } else {
+          this.selectedChar.p1 = data.charIdx;
+        }
+        this._onlineOppCharPicked = true;
+        // If host and we already picked, start now
+        if (this.net?.isHost && this._onlineMyCharPicked) this._onlineStartMatch();
+        break;
+      case 'startMatch':
+        // Guest receives match start command from host
+        this.selectedChar.p1 = data.p1CharIdx;
+        this.selectedChar.p2 = data.p2CharIdx;
+        this.selectedStage = data.stageIdx;
+        this._startMatch();
+        break;
+      case 'input':
+        // Host receives guest's input
+        this._netRemoteKeys = data.keys || {};
+        break;
+      case 'gameState':
+        // Guest receives authoritative state from host
+        this._netPendingState = data;
+        break;
     }
   }
 
@@ -1395,6 +1823,20 @@ class Game {
       this.gameState = GAME_STATE.TITLE;
       this.titleFrame = 0;
       this.titleReady = false;
+      // Tear down online session
+      if (this.onlineMode) {
+        this.net?.destroy();
+        this.net = null;
+        this.onlineMode = false;
+      }
+    }
+
+    // Results also allow Enter to return to title
+    if (this.resultFrame > C.FPS * 3 && this._menuEnterThisFrame) {
+      this.gameState = GAME_STATE.TITLE;
+      this.titleFrame = 0;
+      this.titleReady = false;
+      if (this.onlineMode) { this.net?.destroy(); this.net = null; this.onlineMode = false; }
     }
   }
 

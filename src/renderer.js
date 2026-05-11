@@ -1287,6 +1287,7 @@ export function drawCharacter(ctx, fighter, gameFrame) {
 
   ctx.save();
   ctx.translate(x, y);
+  ctx.scale(0.82, 0.82); // character size
   if (!facingRight) ctx.scale(-1, 1);
   ctx.scale(pose.squishX, pose.squishY);
   ctx.translate(0, pose.bodyY);
