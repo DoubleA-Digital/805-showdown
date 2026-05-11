@@ -1,4 +1,5 @@
 import { C } from './constants.js';
+import { AudioManager } from './audio.js';
 import { InputManager } from './input.js';
 import { Fighter, STATE } from './fighter.js';
 import { drawCharacter, drawPortrait, drawDebugBoxes } from './renderer.js';
@@ -49,6 +50,7 @@ class Game {
     this.input = new InputManager();
     this.effects = new EffectManager();
     this.hud = new HUD();
+    this.audio = new AudioManager();
 
     this.gameState = GAME_STATE.LOADING;
     this.frame = 0;
@@ -467,7 +469,7 @@ class Game {
     ctx.fillStyle = '#666';
     ctx.textAlign = 'center';
     ctx.fillText('P1: WASD + GHJ  |  P2: Arrow Keys + Numpad', C.W / 2, 700);
-    ctx.fillText('G=Light  H=Heavy  J=Signature  K=Shield  U=Grab', C.W / 2, 716);
+    ctx.fillText('G=Light  H=Heavy  J=Sig (hold dir for variant)  K=Dodge  U=Grab', C.W / 2, 716);
   }
 
   // ── CHARACTER SELECT ───────────────────────────────────────────────────
@@ -987,6 +989,14 @@ class Game {
     const platforms = this.stage.platforms;
     const fighters = [this.fighters.p1, this.fighters.p2];
 
+    // Snapshot states before update for audio/event detection
+    const prevStates = {};
+    const prevGrounded = {};
+    for (const f of fighters) {
+      prevStates[f.playerKey] = f.state;
+      prevGrounded[f.playerKey] = f.grounded;
+    }
+
     // Handle input for each fighter
     for (const f of fighters) {
       if (f.state !== STATE.DEATH && f.state !== STATE.RESPAWN) {
@@ -1004,6 +1014,31 @@ class Game {
       f.applyPhysics(platforms, C.W);
       f.tick(platforms, C.W);
       f.updateHitStun();
+    }
+
+    // Audio events based on state transitions
+    for (const f of fighters) {
+      const prev = prevStates[f.playerKey];
+      const cur = f.state;
+      const wasGrounded = prevGrounded[f.playerKey];
+      if (prev !== STATE.JUMP_RISE && cur === STATE.JUMP_RISE) {
+        this.audio.jump();
+      }
+      if (prev !== STATE.DOUBLE_JUMP && cur === STATE.DOUBLE_JUMP) {
+        this.audio.doubleJump();
+      }
+      if (!wasGrounded && f.grounded && cur !== STATE.DEATH && cur !== STATE.RESPAWN) {
+        this.audio.land();
+      }
+      if (prev !== cur && (
+        cur === STATE.SPOT_DODGE || cur === STATE.DODGE_ROLL_L ||
+        cur === STATE.DODGE_ROLL_R || cur === STATE.AIR_DODGE
+      )) {
+        this.audio.dodge();
+      }
+      if (prev !== STATE.SIGNATURE && cur === STATE.SIGNATURE) {
+        this.audio.signature();
+      }
     }
 
     // Hit detection: p1 hits p2
@@ -1025,9 +1060,9 @@ class Game {
       f.prevGrounded = f.grounded;
     }
 
-    // Check blast zones
+    // Check blast zones — any non-dead/non-respawning fighter that leaves the arena dies
     for (const [key, f] of Object.entries(this.fighters)) {
-      if (f.state === STATE.KO_LAUNCH || f.state === STATE.HIT_STUN) {
+      if (f.state !== STATE.DEATH && f.state !== STATE.RESPAWN && f.state !== STATE.LEDGE_HANG) {
         if (f.x < C.BLAST_L || f.x > C.BLAST_R || f.y < C.BLAST_T || f.y > C.BLAST_B) {
           this._handleKO(key, f);
         }
@@ -1163,6 +1198,11 @@ class Game {
         const power = moveDef.isSig ? 'sig' : moveDef.isHeavy ? 'heavy' : 'light';
         this.effects.spawnHitEffect(hitX, hitY, moveDef.effect || 'punch', power);
 
+        // Audio
+        if (power === 'sig') this.audio.hitSig();
+        else if (power === 'heavy') this.audio.hitHeavy();
+        else this.audio.hitLight();
+
         if (result === true) {
           this.effects.spawnDamageNumber(defender.x, defender.y - 60, moveDef.damage);
           this.hud.notifyDamage(defender.playerKey);
@@ -1172,20 +1212,23 @@ class Game {
   }
 
   _handleKO(playerKey, fighter) {
+    if (fighter.state === STATE.DEATH || fighter.state === STATE.RESPAWN) return;
     const opponentKey = playerKey === 'p1' ? 'p2' : 'p1';
     this.stocks[playerKey]--;
 
+    fighter.setState(STATE.DEATH);
     this.effects.spawnKOParticles(fighter.x, fighter.y);
     this.effects.triggerKOFlash();
     this.effects.announce('KO!', '#FFE000', fighter.name);
+    this.audio.ko();
 
     if (this.stocks[playerKey] <= 0) {
       // Match over
       this.winner = this.fighters[opponentKey];
       this.matchEnded = true;
-      fighter.setState(STATE.DEATH);
       setTimeout(() => {
         this.effects.announce('WINNER!', '#FFE000', this.winner.name);
+        this.audio.winFanfare();
       }, 500);
     } else {
       // Respawn

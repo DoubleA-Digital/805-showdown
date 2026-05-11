@@ -134,6 +134,9 @@ export class Fighter {
     this.fallMult  = stats.fall  || 1.0;
     this.weight    = charData.proportions?.weight || 100;
 
+    // Dodge cooldown (shield button = dodge, no camping)
+    this.dodgeCooldown = 0;
+
     // Parry
     this.parryWindow = 0;
     this.parryActive = false;
@@ -298,39 +301,39 @@ export class Fighter {
       return;
     }
 
-    // === SHIELD / PARRY ===
-    if (input.isHeld(p, 'shield') && canAct) {
-      if (this.state !== STATE.SHIELD) this.setState(STATE.SHIELD);
-
-      // Spot dodge
-      if (input.justPressed(p, 'down') && grounded) {
-        this.setState(STATE.SPOT_DODGE);
+    // === DODGE (K key — no standing shield, instant dodge with cooldown) ===
+    if (input.justPressed(p, 'shield') && this.dodgeCooldown === 0) {
+      const canDodgeNow = canAct || canActAir || this._isMovingState();
+      if (canDodgeNow) {
+        if (grounded) {
+          if (Math.abs(dx) > 0.3) {
+            this.facingRight = dx > 0;
+            this.setState(dx > 0 ? STATE.DODGE_ROLL_R : STATE.DODGE_ROLL_L);
+          } else {
+            this.setState(STATE.SPOT_DODGE);
+          }
+        } else {
+          this._airDodge(dx, dy);
+        }
+        this.dodgeCooldown = C.DODGE_COOLDOWN;
         return;
       }
-      // Roll dodge
-      if (input.justPressed(p, 'left') && grounded) {
-        this.facingRight = false;
-        this.setState(STATE.DODGE_ROLL_L);
-        return;
-      }
-      if (input.justPressed(p, 'right') && grounded) {
-        this.facingRight = true;
-        this.setState(STATE.DODGE_ROLL_R);
-        return;
-      }
-      // Air dodge
-      if (input.justPressed(p, 'up') && !grounded) {
-        this._airDodge(dx, dy);
-        return;
-      }
-      return;
-    } else if (this.state === STATE.SHIELD) {
-      this.setState(STATE.IDLE);
     }
 
-    // === SIGNATURE ===
-    if (input.consumeBuffer(p, 'sig') && canAct) {
-      this._startMove(this.data.moves.signature, STATE.SIGNATURE);
+    // === SIGNATURE (directional — J / Num6) ===
+    if (input.consumeBuffer(p, 'sig') && (canAct || canActAir)) {
+      const moves = this.data.moves;
+      let sigMove;
+      if (dy > 0.35 && moves.sigDown) {
+        sigMove = moves.sigDown;
+      } else if (dy < -0.35 && moves.sigUp) {
+        sigMove = moves.sigUp;
+      } else if (Math.abs(dx) > 0.3 && (moves.sigSide || moves.signature)) {
+        sigMove = moves.sigSide || moves.signature;
+      } else {
+        sigMove = moves.sigNeutral || moves.signature;
+      }
+      if (sigMove) this._startMove(sigMove, STATE.SIGNATURE);
       return;
     }
 
@@ -859,6 +862,9 @@ export class Fighter {
 
     // Penalty frames countdown
     if (this.airDodgePenaltyFrames > 0) this.airDodgePenaltyFrames--;
+
+    // Dodge cooldown
+    if (this.dodgeCooldown > 0) this.dodgeCooldown--;
 
     // Recovery cooldown
     if (this.recoveryCooldown > 0) this.recoveryCooldown--;

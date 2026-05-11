@@ -3,19 +3,19 @@ export const C = {
   // Display
   W: 1280, H: 720, FPS: 60,
 
-  // Physics
-  GRAVITY: 0.72,
-  MAX_FALL_SPEED: 22,
-  FAST_FALL_MULT: 2.4,
-  JUMP_FORCE: -17.5,
-  DOUBLE_JUMP_FORCE: -15.0,
+  // Physics — tuned for Brawlhalla-style floaty feel
+  GRAVITY: 0.48,
+  MAX_FALL_SPEED: 15,
+  FAST_FALL_MULT: 3.2,
+  JUMP_FORCE: -18.5,
+  DOUBLE_JUMP_FORCE: -17.0,
   WALK_SPEED: 5.2,
   RUN_SPEED: 9.0,
   DASH_SPEED: 14.0,
   DASH_DURATION: 18,
-  AIR_SPEED: 6.5,
-  AIR_ACCEL: 0.7,
-  GROUND_FRICTION: 0.78,
+  AIR_SPEED: 7.5,
+  AIR_ACCEL: 0.95,
+  GROUND_FRICTION: 0.80,
   AIR_FRICTION: 0.97,
   WAVEDASH_FRICTION: 0.82,
   WAVEDASH_SLIDE_SPEED: 11.0,
@@ -37,7 +37,10 @@ export const C = {
   BASE_KB: 5.0,
   KB_SCALING: 0.082,
 
-  // Shield
+  // Dodge (shield button is now a dodge button — no standing shield camping)
+  DODGE_COOLDOWN: 45,   // frames between dodges
+
+  // Shield (kept for shield-break stun logic only)
   SHIELD_MAX: 100,
   SHIELD_SIZE_MAX: 55,
   SHIELD_SIZE_MIN: 20,

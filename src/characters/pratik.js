@@ -125,11 +125,36 @@ export default {
     signature: {
       name: 'Drop Beat',
       startup: 10, active: 30, recovery: 20,
-      damage: 8,       // per note, 3 notes orbit then detonate
+      damage: 8,
       knockback: { base: 32, scaling: 1.1, angle: 60 },
       hitstun: 18, isHeavy: true, isSig: true, isMultiHit: true, effect: 'sparkle',
       hitCount: 3,
       hitboxes: [{ x: -40, y: -90, w: 80, h: 80 }],
+    },
+    sigSide: {
+      name: 'Drop Beat',
+      startup: 10, active: 30, recovery: 20,
+      damage: 8,
+      knockback: { base: 32, scaling: 1.1, angle: 60 },
+      hitstun: 18, isHeavy: true, isSig: true, isMultiHit: true, effect: 'sparkle',
+      hitCount: 3,
+      hitboxes: [{ x: -40, y: -90, w: 80, h: 80 }],
+    },
+    sigNeutral: {
+      name: 'Bass Pop',
+      startup: 8, active: 12, recovery: 18,
+      damage: 22,
+      knockback: { base: 34, scaling: 1.12, angle: 68 },
+      hitstun: 22, isHeavy: true, isSig: true, effect: 'sparkle',
+      hitboxes: [{ x: -34, y: -90, w: 68, h: 80 }],
+    },
+    sigDown: {
+      name: 'Sub Drop',
+      startup: 12, active: 8, recovery: 20,
+      damage: 25,
+      knockback: { base: 34, scaling: 1.18, angle: 265 },
+      hitstun: 24, isHeavy: true, isSig: true, effect: 'sparkle',
+      hitboxes: [{ x: -24, y: -14, w: 48, h: 14 }],
     },
   },
 };
